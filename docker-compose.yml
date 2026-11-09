@@ -1,20 +1,14 @@
 services:
   tidedeck:
-    build: .
-    # image: yourname/tidedeck:latest   # use this instead of "build" once you push an image
+    image: astaldoo/tidedeck:latest
     container_name: tidedeck
     restart: unless-stopped
     ports:
-      # Host port from .env -> fixed port 3000 inside the container.
-      - "${PORT:-3000}:3000"
-    env_file:
-      - path: .env
-        required: false
+      - "${PORT}:3000"
     environment:
-      # Must stay 3000: PORT in .env only chooses the host port. "environment"
-      # wins over env_file, so the .env value can't move the server off 3000.
-      PORT: "3000"
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      AUTH_DISABLED: ${AUTH_DISABLED:-}
     volumes:
       - ./data:/app/data
-      # Optional: let the "Server resources" block measure a host disk.
-      # - /mnt/tank:/mnt/tank:ro
