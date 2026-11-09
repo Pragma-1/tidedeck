@@ -1,0 +1,290 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "react-grid-layout/css/styles.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Palette: pewter surfaces, paper text, brass accent (user-adjustable).
+  --brand-* is written at runtime from the dashboard's accent setting.
+*/
+:root {
+  --brand-l: #8f6f2c;
+  --brand-l-fg: #ffffff;
+  --brand-d: #c9a45c;
+  --brand-d-fg: #1d1a13;
+  --card-alpha: 1;
+
+  --radius: 0.875rem;
+  --background: #e4e6e9;
+  --foreground: #23262b;
+  --card: #f5f6f7;
+  --card-foreground: #23262b;
+  --popover: #f8f9fa;
+  --popover-foreground: #23262b;
+  --primary: var(--brand-l);
+  --primary-foreground: var(--brand-l-fg);
+  --secondary: #d9dce1;
+  --secondary-foreground: #23262b;
+  --muted: #dde0e4;
+  --muted-foreground: #5e636b;
+  --accent: #dcdfe3;
+  --accent-foreground: #23262b;
+  --destructive: #b5473a;
+  --border: #c9cdd3;
+  --input: #c3c8ce;
+  --ring: var(--brand-l);
+  --ok: #4f8a5e;
+  --down: #b5473a;
+  --grid-line: color-mix(in oklab, var(--brand-l) 9%, transparent);
+}
+
+.dark {
+  --background: #22252a;
+  --foreground: #e7e3da;
+  --card: #2b2f35;
+  --card-foreground: #e7e3da;
+  --popover: #2e3238;
+  --popover-foreground: #e7e3da;
+  --primary: var(--brand-d);
+  --primary-foreground: var(--brand-d-fg);
+  --secondary: #353a41;
+  --secondary-foreground: #e7e3da;
+  --muted: #30343a;
+  --muted-foreground: #9c988e;
+  --accent: #373c43;
+  --accent-foreground: #e7e3da;
+  --destructive: #d06b5e;
+  --border: #3b4048;
+  --input: #444a52;
+  --ring: var(--brand-d);
+  --ok: #8db896;
+  --down: #d77a6d;
+  --grid-line: color-mix(in oklab, var(--brand-d) 6%, transparent);
+}
+
+@theme inline {
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Instrument Sans Variable", ui-sans-serif, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ok: var(--ok);
+  --color-down: var(--down);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: calc(var(--radius) - 2px);
+  --radius-xl: var(--radius);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "ss01";
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ---------- Blocks ---------- */
+
+.block-surface {
+  background: color-mix(in oklab, var(--card) calc(var(--card-alpha) * 100%), transparent);
+  border: 1px solid color-mix(in oklab, var(--border) calc(40% + var(--card-alpha) * 60%), transparent);
+}
+.translucent .block-surface {
+  backdrop-filter: blur(14px) saturate(1.1);
+}
+
+/* ---------- Grid: view vs. edit ---------- */
+
+.react-grid-item {
+  transition-duration: 180ms;
+}
+.react-grid-item.react-grid-placeholder {
+  background: var(--primary);
+  opacity: 0.18;
+  border-radius: var(--radius);
+}
+.react-grid-item.react-draggable-dragging {
+  cursor: grabbing;
+}
+.react-grid-item > .react-resizable-handle::after {
+  border-color: var(--primary);
+}
+.react-grid-item > .react-resizable-handle {
+  opacity: 1;
+  z-index: 20;
+}
+/* Edge handles: a short brass bar instead of the default rotated arrow. */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-w,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-n,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s {
+  transform: none;
+}
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-w::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-n::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s::after {
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  opacity: 0.75;
+}
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-w::after {
+  width: 3px;
+  height: 22px;
+  top: -1px;
+  bottom: auto;
+}
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e::after { right: 4px; left: auto; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-w::after { left: 4px; right: auto; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-n::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s::after {
+  width: 22px;
+  height: 3px;
+  left: -1px;
+  right: auto;
+}
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s::after { bottom: 4px; top: auto; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-n::after { top: 4px; bottom: auto; }
+
+/* Corner handles: larger grab area, drawn as a brass corner bracket. */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-sw,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-ne,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-nw {
+  width: 24px;
+  height: 24px;
+}
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-sw::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-ne::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-nw::after {
+  width: 11px;
+  height: 11px;
+  right: 3px;
+  bottom: 3px;
+  border-right-width: 3px;
+  border-bottom-width: 3px;
+  border-radius: 0 0 4px 0;
+}
+
+/* Music: the library only shows when the block is tall enough. */
+.music-root {
+  container: music / size;
+}
+.music-library {
+  display: none;
+}
+@container music (min-height: 250px) {
+  .music-library {
+    display: flex;
+  }
+}
+
+/* The chart table: column guides appear only while editing. */
+.deck-grid {
+  border-radius: calc(var(--radius) + 4px);
+  transition: background-color 200ms ease, box-shadow 200ms ease;
+}
+.deck-grid[data-editing="true"] {
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      var(--grid-line) 0 var(--col-w),
+      transparent var(--col-w) calc(var(--col-w) + var(--gap))
+    ),
+    radial-gradient(circle, color-mix(in oklab, var(--primary) 30%, transparent) 1px, transparent 1.5px);
+  background-size:
+    100% 100%,
+    calc(var(--col-w) + var(--gap)) calc(var(--row-h) + var(--gap));
+  background-position:
+    var(--pad) 0,
+    calc(var(--pad) - var(--gap) / 2) calc(var(--pad) - var(--gap) / 2);
+  background-clip: content-box;
+  box-shadow: inset 0 0 0 1px var(--grid-line);
+}
+
+/* Brass corner marks on blocks while editing. */
+.corner-marks {
+  --c: var(--primary);
+  --l: 16px;
+  --t: 2px;
+  background:
+    linear-gradient(var(--c), var(--c)) top left / var(--l) var(--t) no-repeat,
+    linear-gradient(var(--c), var(--c)) top left / var(--t) var(--l) no-repeat,
+    linear-gradient(var(--c), var(--c)) top right / var(--l) var(--t) no-repeat,
+    linear-gradient(var(--c), var(--c)) top right / var(--t) var(--l) no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom left / var(--l) var(--t) no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom left / var(--t) var(--l) no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom right / var(--l) var(--t) no-repeat,
+    linear-gradient(var(--c), var(--c)) bottom right / var(--t) var(--l) no-repeat;
+}
+
+/* ---------- Markdown notes ---------- */
+
+.prose-notes {
+  line-height: 1.6;
+  font-size: 0.925rem;
+}
+.prose-notes > * + * {
+  margin-top: 0.6em;
+}
+.prose-notes h1,
+.prose-notes h2,
+.prose-notes h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.25;
+}
+.prose-notes h1 { font-size: 1.35rem; }
+.prose-notes h2 { font-size: 1.15rem; }
+.prose-notes h3 { font-size: 1rem; }
+.prose-notes ul { list-style: disc; padding-left: 1.25rem; }
+.prose-notes ol { list-style: decimal; padding-left: 1.25rem; }
+.prose-notes li + li { margin-top: 0.2em; }
+.prose-notes a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.prose-notes code { background: var(--muted); padding: 0.1em 0.35em; border-radius: 5px; font-size: 0.85em; }
+.prose-notes pre { background: var(--muted); padding: 0.75rem; border-radius: 8px; overflow-x: auto; }
+.prose-notes pre code { background: none; padding: 0; }
+.prose-notes blockquote { border-left: 3px solid var(--primary); padding-left: 0.75rem; color: var(--muted-foreground); }
+.prose-notes table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
+.prose-notes th, .prose-notes td { border: 1px solid var(--border); padding: 0.3rem 0.5rem; text-align: left; }
+.prose-notes hr { border-color: var(--border); }
+.prose-notes input[type="checkbox"] { margin-right: 0.4rem; accent-color: var(--primary); }
+
+@media (prefers-reduced-motion: reduce) {
+  .react-grid-item,
+  .deck-grid {
+    transition: none !important;
+  }
+}

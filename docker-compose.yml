@@ -1,0 +1,20 @@
+services:
+  tidedeck:
+    build: .
+    # image: yourname/tidedeck:latest   # use this instead of "build" once you push an image
+    container_name: tidedeck
+    restart: unless-stopped
+    ports:
+      # Host port from .env -> fixed port 3000 inside the container.
+      - "${PORT:-3000}:3000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Must stay 3000: PORT in .env only chooses the host port. "environment"
+      # wins over env_file, so the .env value can't move the server off 3000.
+      PORT: "3000"
+    volumes:
+      - ./data:/app/data
+      # Optional: let the "Server resources" block measure a host disk.
+      # - /mnt/tank:/mnt/tank:ro
