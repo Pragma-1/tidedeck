@@ -1,7 +1,7 @@
 "use client"
 
-import { useRef, useState } from "react"
-import { Download, LogOut, Upload } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { Copy, Download, LogOut, Upload } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -12,9 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Field, ToggleRow } from "@/components/dashboard/fields"
 import { postAuth } from "@/components/dashboard/auth-dialog"
+import { SearchSettings } from "@/components/dashboard/search-settings"
+import { LookSettings } from "@/components/dashboard/look-settings"
 import { getDashboard, useDashboard } from "@/hooks/use-dashboard"
-import { ACCENT_PRESETS } from "@/lib/accent"
 import { configSchema, type Settings } from "@/lib/schema"
+import { MAX_IMPORT_BYTES, importDashboard, type ImportResult } from "@/lib/import-dashboards"
 import { cn } from "@/lib/utils"
 
 export function SettingsDialog() {
@@ -26,7 +28,7 @@ export function SettingsDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="top-[max(1rem,6vh)] max-h-[calc(100dvh-max(2rem,12vh))] translate-y-0 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Dashboard settings</DialogTitle>
           <DialogDescription>Changes apply right away and are saved for everyone.</DialogDescription>
@@ -40,7 +42,7 @@ export function SettingsDialog() {
           </TabsList>
 
           <TabsContent value="look" className="grid gap-5">
-            <AppearanceTab settings={settings} set={set} />
+            <LookSettings settings={settings} set={set} />
           </TabsContent>
 
           <TabsContent value="general" className="grid gap-5">
@@ -65,6 +67,10 @@ export function SettingsDialog() {
               checked={settings.requireLoginToView}
               onCheckedChange={(v) => set((s) => void (s.requireLoginToView = v))}
             />
+            <div className="border-t pt-5">
+              <SearchSettings settings={settings} set={set} />
+            </div>
+            <KioskHelp />
           </TabsContent>
 
           <TabsContent value="account">
@@ -77,100 +83,6 @@ export function SettingsDialog() {
         </Tabs>
       </DialogContent>
     </Dialog>
-  )
-}
-
-function AppearanceTab({ settings, set }: { settings: Settings; set: (fn: (s: Settings) => void) => void }) {
-  return (
-    <>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Default theme" hint="Each browser can still switch with the sun/moon button.">
-          {(id) => (
-            <Select value={settings.theme} onValueChange={(v) => set((s) => void (s.theme = v as Settings["theme"]))}>
-              <SelectTrigger id={id}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="dark">Dark</SelectItem>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="system">Follow device</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-        </Field>
-        <Field label="Accent colour">
-          {(id) => (
-            <div className="flex items-center gap-1.5">
-              {ACCENT_PRESETS.map((p) => (
-                <button
-                  key={p.hex}
-                  type="button"
-                  title={p.name}
-                  aria-label={p.name}
-                  aria-pressed={settings.accent.toLowerCase() === p.hex}
-                  onClick={() => set((s) => void (s.accent = p.hex))}
-                  className={cn(
-                    "size-7 rounded-full ring-offset-2 ring-offset-popover transition-shadow",
-                    settings.accent.toLowerCase() === p.hex && "ring-2 ring-foreground",
-                  )}
-                  style={{ background: p.hex }}
-                />
-              ))}
-              <input
-                id={id}
-                type="color"
-                aria-label="Custom accent colour"
-                value={settings.accent}
-                onChange={(e) => set((s) => void (s.accent = e.target.value))}
-                className="ml-1 size-7 cursor-pointer rounded-full border bg-transparent p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-0 [&::-webkit-color-swatch-wrapper]:p-0"
-              />
-            </div>
-          )}
-        </Field>
-      </div>
-
-      <Field label="Background image" hint="An image URL, or a file you put in the public folder (e.g. /backgrounds/sea.jpg). Leave empty for a plain background.">
-        {(id) => (
-          <Input
-            id={id}
-            value={settings.background.imageUrl}
-            placeholder="https://…"
-            onChange={(e) => set((s) => void (s.background.imageUrl = e.target.value))}
-          />
-        )}
-      </Field>
-      {settings.background.imageUrl && (
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field label={`Blur ${settings.background.blur}px`}>
-            {() => (
-              <Slider aria-label="Background blur" min={0} max={40} value={[settings.background.blur]} onValueChange={([v]) => set((s) => void (s.background.blur = v))} />
-            )}
-          </Field>
-          <Field label={`Darken ${settings.background.dim}%`}>
-            {() => (
-              <Slider aria-label="Background darkening" min={0} max={90} value={[settings.background.dim]} onValueChange={([v]) => set((s) => void (s.background.dim = v))} />
-            )}
-          </Field>
-        </div>
-      )}
-      <Field label={`Block opacity ${settings.cardOpacity}%`} hint="Below 100% the background shows through, frosted.">
-        {() => (
-          <Slider aria-label="Block opacity" min={20} max={100} value={[settings.cardOpacity]} onValueChange={([v]) => set((s) => void (s.cardOpacity = v))} />
-        )}
-      </Field>
-      <Field label="Custom CSS" hint="Applied after the built-in styles. Blocks have the class .block-surface.">
-        {(id) => (
-          <Textarea
-            id={id}
-            rows={4}
-            spellCheck={false}
-            value={settings.customCss}
-            placeholder=".block-surface { border-radius: 4px; }"
-            onChange={(e) => set((s) => void (s.customCss = e.target.value))}
-          />
-        )}
-      </Field>
-    </>
   )
 }
 
@@ -213,7 +125,16 @@ function AccountTab() {
           Change password
         </Button>
       </form>
-      <div className="border-t pt-4">
+      <div className="flex flex-wrap gap-2 border-t pt-4">
+        <Button
+          variant="outline"
+          onClick={async () => {
+            const r = await postAuth({ action: "logout-all" })
+            setMsg(r.ok ? { ok: true, text: "All other browsers and devices have been signed out." } : { ok: false, text: r.error })
+          }}
+        >
+          Sign out everywhere else
+        </Button>
         <Button
           variant="outline"
           onClick={async () => {
@@ -285,6 +206,142 @@ function BackupTab() {
           }}
         />
       </div>
+      <ImportOther />
     </div>
+  )
+}
+
+/** Moving over from Homepage, Dashy or Homer: their YAML becomes a new board. */
+function ImportOther() {
+  const mutate = useDashboard((s) => s.mutate)
+  const setActiveBoard = useDashboard((s) => s.setActiveBoard)
+  const setOpen = useDashboard((s) => s.setSettingsOpen)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [text, setText] = useState("")
+  const [result, setResult] = useState<ImportResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const read = (t: string) => {
+    setError(null)
+    setResult(null)
+    if (!t.trim()) return
+    try {
+      setResult(importDashboard(t))
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
+  return (
+    <section className="grid gap-3 border-t pt-5">
+      <h3 className="text-sm font-semibold">Import from another dashboard</h3>
+      <p className="text-sm text-muted-foreground">
+        Homepage (<code className="rounded bg-muted px-1">services.yaml</code>, <code className="rounded bg-muted px-1">bookmarks.yaml</code>), Dashy (
+        <code className="rounded bg-muted px-1">conf.yml</code>) or Homer (<code className="rounded bg-muted px-1">config.yml</code>). Its groups of links
+        become a new board; your current boards stay as they are.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={() => fileRef.current?.click()}>
+          <Upload /> Choose a file
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".yml,.yaml,.json,text/yaml,application/json"
+          className="hidden"
+          onChange={async (e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ""
+            if (!f) return
+            if (f.size > MAX_IMPORT_BYTES) return setError("The file is larger than 1 MB.")
+            const t = await f.text()
+            setText(t)
+            read(t)
+          }}
+        />
+      </div>
+      <Textarea
+        aria-label="Or paste the file's content"
+        rows={4}
+        value={text}
+        placeholder="…or paste the YAML here"
+        className="font-mono text-xs"
+        onChange={(e) => {
+          setText(e.target.value)
+          read(e.target.value)
+        }}
+      />
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {result && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/40 px-3 py-2.5">
+          <p className="min-w-0 flex-1 text-sm">
+            {result.source}: {result.groups} {result.groups === 1 ? "group" : "groups"}, {result.apps} {result.apps === 1 ? "link" : "links"}
+            {result.skipped > 0 && <span className="text-muted-foreground">, {result.skipped} skipped (no usable link)</span>}
+          </p>
+          <Button
+            disabled={getDashboard().config.boards.length >= 50}
+            onClick={() => {
+              const board = result.board
+              mutate((cfg) => void cfg.boards.push(board))
+              setActiveBoard(board.id)
+              setOpen(false)
+              setText("")
+              setResult(null)
+              toast("Board added", { description: `“${board.name}” with ${result.apps} links. Turn on status dots per group in its settings.` })
+            }}
+          >
+            Add as new board
+          </Button>
+        </div>
+      )}
+    </section>
+  )
+}
+
+/** Wall-screen mode: a link without header or edit controls, optionally cycling through boards. */
+function KioskHelp() {
+  const boards = useDashboard((s) => s.config.boards)
+  const active = useDashboard((s) => s.activeBoardId)
+  const [rotate, setRotate] = useState(0)
+  const [origin, setOrigin] = useState("")
+  useEffect(() => setOrigin(window.location.origin), [])
+  const board = boards.find((b) => b.id === active)
+  const link = `${origin}/?board=${encodeURIComponent(active)}&kiosk${rotate ? `&rotate=${rotate}` : ""}`
+  return (
+    <section className="grid gap-3 border-t pt-5">
+      <h3 className="text-sm font-semibold">Wall screen (kiosk)</h3>
+      <p className="text-sm text-muted-foreground">
+        Open this link on a TV or tablet: no header, no edit button, the board fills the screen. Esc or a double-tap in the top-left corner shows the
+        header again.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={String(rotate)} onValueChange={(v) => setRotate(Number(v))}>
+          <SelectTrigger className="w-56" aria-label="Cycle through boards">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="0">Show “{board?.name}” only</SelectItem>
+            {boards.length > 1 && (
+              <>
+                <SelectItem value="30">Next board every 30 s</SelectItem>
+                <SelectItem value="60">Next board every minute</SelectItem>
+                <SelectItem value="300">Next board every 5 min</SelectItem>
+              </>
+            )}
+          </SelectContent>
+        </Select>
+        <Button
+          variant="outline"
+          onClick={() =>
+            navigator.clipboard?.writeText(link).then(
+              () => toast("Kiosk link copied", { description: link }),
+              () => toast.error("Couldn't copy", { description: link }),
+            )
+          }
+        >
+          <Copy /> Copy link
+        </Button>
+      </div>
+    </section>
   )
 }

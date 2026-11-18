@@ -7,6 +7,7 @@ import {
   Cpu,
   Frame,
   LayoutGrid,
+  ListChecks,
   Music,
   Rss,
   Search,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react"
 import { blockSchema, type Block, type BlockType } from "@/lib/schema"
 import { uid } from "@/lib/utils"
+import { BLOCK_INFO } from "@/lib/block-info"
 
 export type WidgetMeta = {
   label: string
@@ -42,145 +44,148 @@ export const newApp = (over: Record<string, unknown> = {}) => ({
 })
 
 /** Entries in the "Add block" menu. "bookmarks" is a preset of the apps block. */
-export const ADD_MENU: Array<{ key: string; meta: WidgetMeta }> = [
+export const ADD_MENU: Array<{ key: string; type: BlockType; meta: WidgetMeta }> = [
   {
     key: "app",
+    type: "app",
     meta: {
-      label: "App",
+      ...BLOCK_INFO.app,
       description: "One service as a tile, with online status",
       icon: AppWindow,
-      size: { w: 2, h: 2 },
-      min: { w: 1, h: 2 },
       create: () => make("app", "", { app: newApp() }, false),
     },
   },
   {
     key: "apps",
+    type: "apps",
     meta: {
-      label: "App group",
+      ...BLOCK_INFO.apps,
       description: "Several services under one heading",
       icon: LayoutGrid,
-      size: { w: 4, h: 5 },
-      min: { w: 2, h: 3 },
       create: () => make("apps", "Apps", { apps: [] }),
     },
   },
   {
     key: "bookmarks",
+    type: "apps",
     meta: {
       label: "Bookmarks",
       description: "A compact list of links",
       icon: Bookmark,
-      size: { w: 3, h: 5 },
-      min: { w: 2, h: 3 },
+      size: { w: 12, h: 30 },
+      min: { w: 8, h: 18 },
       create: () => make("apps", "Bookmarks", { apps: [], display: "list", showStatus: false, showDescription: false }),
     },
   },
   {
     key: "search",
+    type: "search",
     meta: {
-      label: "Search",
+      ...BLOCK_INFO.search,
       description: "Find your apps or search the web. Press / to focus",
       icon: Search,
-      size: { w: 6, h: 2 },
-      min: { w: 2, h: 2 },
       create: () => make("search", "", {}, false),
     },
   },
   {
     key: "clock",
+    type: "clock",
     meta: {
-      label: "Clock",
+      ...BLOCK_INFO.clock,
       description: "Time and date, any time zone",
       icon: Clock,
-      size: { w: 3, h: 2 },
-      min: { w: 2, h: 2 },
       create: () => make("clock", "", {}, false),
     },
   },
   {
     key: "weather",
+    type: "weather",
     meta: {
-      label: "Weather",
+      ...BLOCK_INFO.weather,
       description: "Current conditions and forecast, no API key",
       icon: CloudSun,
-      size: { w: 3, h: 5 },
-      min: { w: 2, h: 3 },
       create: () => make("weather", "Weather"),
     },
   },
   {
     key: "system",
+    type: "system",
     meta: {
-      label: "Server resources",
+      ...BLOCK_INFO.system,
       description: "CPU, memory, disk and uptime of this host",
       icon: Cpu,
-      size: { w: 3, h: 5 },
-      min: { w: 2, h: 3 },
       create: () => make("system", "Server"),
     },
   },
   {
     key: "rss",
+    type: "rss",
     meta: {
-      label: "RSS feed",
+      ...BLOCK_INFO.rss,
       description: "Latest posts from one or more feeds",
       icon: Rss,
-      size: { w: 4, h: 6 },
-      min: { w: 2, h: 3 },
       create: () => make("rss", "News"),
     },
   },
   {
     key: "notes",
+    type: "notes",
     meta: {
-      label: "Notes",
+      ...BLOCK_INFO.notes,
       description: "Markdown text, checklists and links",
       icon: StickyNote,
-      size: { w: 3, h: 4 },
-      min: { w: 2, h: 2 },
       create: () => make("notes", "Notes", { content: "" }),
     },
   },
   {
-    key: "music",
+    key: "checklist",
+    type: "checklist",
     meta: {
-      label: "Music",
+      ...BLOCK_INFO.checklist,
+      description: "A to-do list you tick off right on the dashboard",
+      icon: ListChecks,
+      create: () =>
+        make("checklist", "To do", {
+          items: [
+            { id: uid(), text: "Update the containers", done: false },
+            { id: uid(), text: "Renew the certificate", done: false },
+          ],
+        }),
+    },
+  },
+  {
+    key: "music",
+    type: "music",
+    meta: {
+      ...BLOCK_INFO.music,
       description: "Play from Navidrome, or embed Spotify, YouTube or Deezer",
       icon: Music,
-      size: { w: 4, h: 9 },
-      min: { w: 3, h: 3 },
       create: () => make("music", "Music"),
     },
   },
   {
     key: "calendar",
+    type: "calendar",
     meta: {
-      label: "Calendar",
+      ...BLOCK_INFO.calendar,
       description: "This month at a glance",
       icon: CalendarDays,
-      size: { w: 3, h: 6 },
-      min: { w: 2, h: 5 },
       create: () => make("calendar", "", {}, false),
     },
   },
   {
     key: "iframe",
+    type: "iframe",
     meta: {
-      label: "Embedded page",
+      ...BLOCK_INFO.iframe,
       description: "Show another web page inside a block",
       icon: Frame,
-      size: { w: 6, h: 8 },
-      min: { w: 2, h: 3 },
       create: () => make("iframe", "Embed", { url: "" }),
     },
   },
 ]
 
-const byType = new Map<BlockType, WidgetMeta>()
-for (const { meta, key } of ADD_MENU) {
-  const t = meta.create().type
-  if (!byType.has(t) || key === t) byType.set(t, meta)
-}
+/** The "Add block" entry of a block type itself (not a preset like Bookmarks). */
+const byType = new Map<BlockType, WidgetMeta>(ADD_MENU.filter((e) => e.key === e.type).map((e) => [e.type, e.meta]))
 
-export const metaFor = (type: BlockType): WidgetMeta => byType.get(type)!
+export const metaFor = (type: BlockType): WidgetMeta => byType.get(type) ?? { ...BLOCK_INFO[type], description: "", icon: LayoutGrid, create: () => make(type, "") }

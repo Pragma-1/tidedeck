@@ -1,11 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useTheme } from "next-themes"
+import { useIsDark } from "@/hooks/use-is-dark"
 import {
   ArrowLeft,
   Disc3,
-  ListMusic,
   Loader2,
   Pause,
   Play,
@@ -15,6 +14,7 @@ import {
   Shuffle,
   SkipBack,
   SkipForward,
+  Square,
   Volume1,
   Volume2,
   VolumeX,
@@ -34,9 +34,9 @@ export function MusicWidget({ block, editing }: { block: BlockOf<"music">; editi
 // --- Spotify / YouTube / Deezer --------------------------------------------
 
 function EmbedPlayer({ block, editing }: { block: BlockOf<"music">; editing: boolean }) {
-  const { resolvedTheme } = useTheme()
+  const dark = useIsDark()
   const source = block.props.source as "spotify" | "youtube" | "deezer"
-  const src = embedUrl(source, block.props.link, resolvedTheme !== "light")
+  const src = embedUrl(source, block.props.link, dark)
   if (!src) {
     return (
       <p className="px-4 pb-4 text-sm text-muted-foreground">
@@ -66,10 +66,10 @@ type View = "recent" | "newest" | "random" | "playlists" | "search"
 type Detail = { kind: "album" | "playlist" | "random"; id?: string; title: string }
 
 const VIEWS: Array<{ id: View; label: string }> = [
-  { id: "recent", label: "Recent" },
-  { id: "newest", label: "New" },
-  { id: "random", label: "Discover" },
+  { id: "newest", label: "Albums" },
   { id: "playlists", label: "Playlists" },
+  { id: "recent", label: "Recently played" },
+  { id: "random", label: "Random" },
 ]
 
 async function getJson<T>(url: string): Promise<T> {
@@ -96,7 +96,7 @@ function Cover({ blockId, id, size, className }: { blockId: string; id?: string;
 }
 
 function NavidromePlayer({ block, editing }: { block: BlockOf<"music">; editing: boolean }) {
-  const [view, setView] = useState<View>("recent")
+  const [view, setView] = useState<View>("newest")
   const [query, setQuery] = useState("")
   const [submitted, setSubmitted] = useState("")
   const [data, setData] = useState<LibraryData | null>(null)
@@ -152,52 +152,73 @@ function NavidromePlayer({ block, editing }: { block: BlockOf<"music">; editing:
   return (
     <div className="music-root flex h-full flex-col">
       <NowPlaying blockId={block.id} onShuffleAll={shuffleAll} />
+      <p className="music-more px-4 pb-3 text-xs text-muted-foreground">Make this block taller to search and browse albums and playlists.</p>
 
       <div className="music-library min-h-0 flex-1 flex-col border-t">
-        <div className="flex items-center gap-1 px-3 pt-2.5 pb-2">
+        <div className="grid gap-2 px-3 pt-3 pb-2">
+          <form
+            role="search"
+            className="flex items-center gap-2 rounded-full border bg-muted px-3 focus-within:ring-2 focus-within:ring-ring/40"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!query.trim()) return
+              setDetail(null)
+              setSubmitted(query.trim())
+              setView("search")
+            }}
+          >
+            <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search songs and albums"
+              aria-label="Search your music"
+              className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+            {view === "search" && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => {
+                  setQuery("")
+                  setSubmitted("")
+                  setView("newest")
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </form>
+
           {detail ? (
-            <button type="button" onClick={() => setDetail(null)} className="flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-sm hover:bg-accent">
+            <button type="button" onClick={() => setDetail(null)} className="flex min-w-0 items-center gap-1.5 justify-self-start rounded-md px-1.5 py-1 text-sm hover:bg-accent">
               <ArrowLeft className="size-4 shrink-0" />
               <span className="truncate font-medium">{detail.title}</span>
             </button>
           ) : (
-            <>
-              <div className="flex min-w-0 gap-0.5 overflow-x-auto" role="tablist" aria-label="Library">
-                {VIEWS.map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={view === v.id}
-                    onClick={() => setView(v.id)}
-                    className={cn(
-                      "shrink-0 rounded-md px-2 py-1 text-xs transition-colors",
-                      view === v.id ? "bg-secondary font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {v.label}
-                  </button>
-                ))}
-              </div>
-              <form
-                className="ml-auto flex min-w-0 items-center gap-1 rounded-md bg-muted/70 px-2 focus-within:ring-2 focus-within:ring-ring/40"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  if (!query.trim()) return
-                  setSubmitted(query.trim())
-                  setView("search")
-                }}
-              >
-                <Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search"
-                  aria-label="Search your music"
-                  className="h-7 w-20 min-w-0 bg-transparent text-xs outline-none placeholder:text-muted-foreground @[22rem]:w-32"
-                />
-              </form>
-            </>
+            <div className="flex min-w-0 gap-0.5 overflow-x-auto" role="tablist" aria-label="Library">
+              {VIEWS.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === v.id}
+                  onClick={() => setView(v.id)}
+                  className={cn(
+                    "shrink-0 rounded-md px-2.5 py-1 text-xs transition-colors",
+                    view === v.id ? "bg-secondary font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {v.label}
+                </button>
+              ))}
+              {view === "search" && (
+                <span className="flex shrink-0 items-center gap-1 rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold">
+                  <Search className="size-3" aria-hidden /> “{submitted}”
+                </span>
+              )}
+            </div>
           )}
         </div>
 
@@ -262,7 +283,9 @@ function LibraryContent({
     <div className="grid gap-4">
       {view === "search" && data.tracks && data.tracks.length > 0 && <TrackList blockId={blockId} tracks={data.tracks} title="Search results" compact />}
       {albums.length === 0 && !(data.tracks && data.tracks.length) && (
-        <p className="py-2 text-sm text-muted-foreground">{view === "search" ? "Nothing found." : "No albums yet."}</p>
+        <p className="py-2 text-sm text-muted-foreground">
+          {view === "search" ? "Nothing found." : view === "recent" ? "Nothing played yet. Try Albums or Playlists." : "No albums on the server yet."}
+        </p>
       )}
       {albums.length > 0 && (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(6.25rem,1fr))] gap-x-3 gap-y-3.5">
@@ -429,11 +452,16 @@ function NowPlaying({ blockId, onShuffleAll }: { blockId: string; onShuffleAll: 
             <RepeatIcon />
           </IconBtn>
         </div>
+        <div className="flex items-center gap-1.5">
+        <IconBtn label="Stop listening" onClick={player.stop}>
+          <Square className="size-3.5! fill-current" />
+        </IconBtn>
         <div className="hidden w-28 items-center gap-1.5 @[20rem]:flex">
           <button type="button" aria-label={volume === 0 ? "Unmute" : "Mute"} onClick={() => player.setVolume(volume === 0 ? 0.8 : 0)} className="text-muted-foreground hover:text-foreground">
             <VolIcon className="size-4" />
           </button>
           <Slider aria-label="Volume" min={0} max={1} step={0.01} value={[volume]} onValueChange={([v]) => player.setVolume(v)} />
+        </div>
         </div>
       </div>
     </div>
@@ -457,27 +485,27 @@ function IconBtn({ label, active, onClick, children }: { label: string; active?:
   )
 }
 
-/** Small "now playing" control in the header while the music block isn't on screen. */
+/** Small "now playing" control in the header band while the music block isn't on screen. */
 export function MiniPlayer({ visibleBlockIds }: { visibleBlockIds: string[] }) {
   const blockId = usePlayer((s) => s.blockId)
   const track = usePlayer((s) => currentTrack(s))
   const playing = usePlayer((s) => s.playing)
   if (!blockId || !track || visibleBlockIds.includes(blockId)) return null
   return (
-    <div className="flex items-center gap-2 rounded-full border bg-card py-1 pr-1 pl-1">
+    <div className="mr-1 flex items-center gap-1 rounded-full border border-band-line bg-white/[0.06] py-0.5 pr-0.5 pl-0.5">
       <Cover blockId={blockId} id={track.coverArt} size={64} className="size-7 rounded-full" />
-      <span className="max-w-40 min-w-0 truncate text-xs" title={`${track.title}, ${track.artist}`}>
+      <span className="ml-1 max-w-40 min-w-0 truncate text-xs text-band-ink" title={`${track.title}, ${track.artist}`}>
         {track.title}
       </span>
-      <IconBtn label={playing ? "Pause" : "Play"} onClick={() => player.toggle()}>
-        {playing ? <Pause className="fill-current" /> : <Play className="fill-current" />}
-      </IconBtn>
-      <IconBtn label="Next" onClick={() => player.next()}>
-        <SkipForward className="fill-current" />
-      </IconBtn>
-      <IconBtn label="Stop" onClick={player.stop}>
-        <X />
-      </IconBtn>
+      <button type="button" className="band-btn rounded-full! p-1.5!" aria-label={playing ? "Pause" : "Play"} onClick={() => player.toggle()}>
+        {playing ? <Pause className="size-4! fill-current" /> : <Play className="size-4! fill-current" />}
+      </button>
+      <button type="button" className="band-btn rounded-full! p-1.5!" aria-label="Next" onClick={() => player.next()}>
+        <SkipForward className="size-4! fill-current" />
+      </button>
+      <button type="button" className="band-btn rounded-full! p-1.5!" aria-label="Stop" onClick={player.stop}>
+        <X className="size-4!" />
+      </button>
     </div>
   )
 }

@@ -46,5 +46,7 @@ export function checkApp(app: App): Promise<StatusResult> {
   if (hit && hit.key === key && Date.now() - hit.at < CACHE_MS) return hit.result
   const result = probe(url, app.insecureTls)
   cache.set(app.id, { key, at: Date.now(), result })
+  // Apps that were deleted stop being asked about; drop their entries now and then.
+  if (cache.size > 2000) for (const [id, v] of cache) if (Date.now() - v.at > 10 * 60_000) cache.delete(id)
   return result
 }

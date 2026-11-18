@@ -1,19 +1,20 @@
 "use client"
 
-import { useTheme } from "next-themes"
+import { useIsDark } from "@/hooks/use-is-dark"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
 export function Toaster(props: ToasterProps) {
-  const { resolvedTheme } = useTheme()
+  const dark = useIsDark()
   return (
     <Sonner
-      theme={(resolvedTheme as ToasterProps["theme"]) ?? "dark"}
-      position="bottom-right"
+      theme={dark ? "dark" : "light"}
+      position="bottom-center"
       style={
         {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
+          "--normal-bg": "var(--band)",
+          "--normal-text": "var(--band-ink)",
+          "--normal-border": "var(--band-line)",
+          "--border-radius": "0.7rem",
         } as React.CSSProperties
       }
       {...props}

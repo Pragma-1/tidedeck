@@ -1,16 +1,20 @@
-FROM node:22-alpine AS deps
+# Node.js major version. 22 is tested with this release; 24 is supported by Next.js and
+# checked in CI (docker build --build-arg NODE_VERSION=24 .).
+ARG NODE_VERSION=22
+
+FROM node:${NODE_VERSION}-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
-FROM node:22-alpine AS build
+FROM node:${NODE_VERSION}-alpine AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN mkdir -p public && npm run build
 
-FROM node:22-alpine AS run
+FROM node:${NODE_VERSION}-alpine AS run
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \

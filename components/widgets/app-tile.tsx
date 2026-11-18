@@ -1,21 +1,31 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useAppStatus, type StatusResult } from "@/hooks/use-status"
 import { resolveIcon } from "@/lib/icons"
 import type { App } from "@/lib/schema"
 import { cn, isSafeHref } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuLabel, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu"
+import { openLink } from "@/hooks/use-overlay"
+import { ArrowUpRight, ExternalLink, Link2, PanelTop } from "lucide-react"
+import { SendAppItems } from "@/components/dashboard/send-to-board"
 
 export function AppIcon({ app, className }: { app: Pick<App, "icon" | "url" | "name">; className?: string }) {
   const src = resolveIcon(app.icon, app.url)
   const [failed, setFailed] = useState<string | null>(null)
+  const img = useRef<HTMLImageElement>(null)
+  // An image that already failed before React hydrated never fires onError; check once after mount.
+  useEffect(() => {
+    const el = img.current
+    if (el && src && el.complete && el.naturalWidth === 0) setFailed(src)
+  }, [src])
   if (!src || failed === src) {
     return (
       <span
         aria-hidden
         className={cn(
-          "grid shrink-0 place-items-center rounded-[28%] bg-primary/15 font-display font-semibold text-primary",
+          "grid shrink-0 place-items-center rounded-[28%] bg-primary/12 font-semibold text-primary",
           className,
         )}
       >
@@ -26,6 +36,7 @@ export function AppIcon({ app, className }: { app: Pick<App, "icon" | "url" | "n
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      ref={img}
       src={src}
       alt=""
       loading="lazy"
@@ -53,13 +64,8 @@ export function StatusDot({ app, className }: { app: App; className?: string }) 
         <span
           role="status"
           aria-label={describe(status)}
-          className={cn(
-            "inline-block size-2 shrink-0 rounded-full ring-2 ring-card transition-colors",
-            !status && "bg-muted-foreground/40",
-            status?.ok && "bg-ok",
-            status && !status.ok && "bg-down",
-            className,
-          )}
+          // Lit green, lit and pulsing red, or an unlit ring while checking (see .led in globals.css).
+          className={cn("led", !status ? "led-wait" : status.ok ? "led-ok" : "led-down", className)}
         />
       </TooltipTrigger>
       <TooltipContent>{describe(status)}</TooltipContent>
@@ -67,21 +73,54 @@ export function StatusDot({ app, className }: { app: App; className?: string }) 
   )
 }
 
-export function AppLink({ app, className, children }: { app: App; className?: string; children: React.ReactNode }) {
+/**
+ * A link to an app. Click opens it the app's way (new tab, same tab, overlay);
+ * Alt+click opens the overlay, middle/Ctrl+click a new tab (browser default),
+ * right-click shows every way to open it.
+ */
+export function AppLink({ app, blockId, className, children }: { app: App; blockId?: string; className?: string; children: React.ReactNode }) {
   const ok = isSafeHref(app.url)
   return (
-    <a
-      href={ok ? app.url : undefined}
-      target={app.target === "new" ? "_blank" : undefined}
-      rel="noopener noreferrer"
-      aria-disabled={!ok}
-      className={cn(
-        "group/app outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        !ok && "pointer-events-none opacity-60",
-        className,
-      )}
-    >
-      {children}
-    </a>
+    <ContextMenu>
+      <ContextMenuTrigger asChild disabled={!ok}>
+        <a
+          href={ok ? app.url : undefined}
+          target={app.target === "new" ? "_blank" : undefined}
+          rel="noopener noreferrer"
+          aria-disabled={!ok}
+          onClick={(e) => {
+            if (!ok || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return
+            if (e.altKey || app.target === "overlay") {
+              e.preventDefault()
+              openLink(app.url, app.name, "overlay")
+            }
+          }}
+          className={cn(
+            "group/app outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            !ok && "pointer-events-none opacity-60",
+            className,
+          )}
+        >
+          {children}
+        </a>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuLabel>{app.name || app.url}</ContextMenuLabel>
+        <ContextMenuItem onSelect={() => openLink(app.url, app.name, "same")}>
+          <ArrowUpRight /> Open here
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => openLink(app.url, app.name, "new")}>
+          <ExternalLink /> Open in new tab
+        </ContextMenuItem>
+        <ContextMenuItem disabled={!/^https?:\/\//i.test(app.url)} onSelect={() => openLink(app.url, app.name, "overlay")}>
+          <PanelTop /> Open on top of the dashboard
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => openLink(app.url, app.name, "copy")}>
+          <Link2 /> Copy link
+        </ContextMenuItem>
+        {blockId && <SendAppItems blockId={blockId} app={app} />}
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

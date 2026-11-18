@@ -4,20 +4,15 @@ import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Search } from "lucide-react"
 import { useDashboard } from "@/hooks/use-dashboard"
-import { collectApps, type BlockOf } from "@/lib/schema"
-import { cn, isSafeHref } from "@/lib/utils"
+import { useBlockZoom } from "@/hooks/use-block-zoom"
+import { collectApps } from "@/lib/model"
+import type { App, BlockOf } from "@/lib/schema"
+import { cn } from "@/lib/utils"
+import { openLink } from "@/hooks/use-overlay"
+import { ENGINE_NAMES, asUrl, engineTemplate, fillTemplate, parseShortcut } from "@/lib/search"
 import { AppIcon } from "@/components/widgets/app-tile"
 
-const ENGINES = {
-  duckduckgo: { name: "DuckDuckGo", url: "https://duckduckgo.com/?q=%s" },
-  google: { name: "Google", url: "https://www.google.com/search?q=%s" },
-  bing: { name: "Bing", url: "https://www.bing.com/search?q=%s" },
-  startpage: { name: "Startpage", url: "https://www.startpage.com/do/search?q=%s" },
-  brave: { name: "Brave Search", url: "https://search.brave.com/search?q=%s" },
-  custom: { name: "your search engine", url: "" },
-} as const
-
-export const ENGINE_NAMES = Object.fromEntries(Object.entries(ENGINES).map(([k, v]) => [k, v.name]))
+export { ENGINE_NAMES } from "@/lib/search"
 
 export function SearchWidget({ block }: { block: BlockOf<"search"> }) {
   const { engine, customUrl, searchApps, newTab } = block.props
@@ -28,11 +23,12 @@ export function SearchWidget({ block }: { block: BlockOf<"search"> }) {
   const listId = useId()
   const anchor = useRef<HTMLLabelElement>(null)
   const [rect, setRect] = useState<DOMRect | null>(null)
+  const zoom = useBlockZoom()
   const [focused, setFocused] = useState(false)
 
   const matches = useMemo(() => {
     const term = q.trim().toLowerCase()
-    if (!searchApps || !term) return []
+    if (!searchApps || !term || term.startsWith("!")) return []
     return allApps
       .filter((a) => a.name.toLowerCase().includes(term) || a.description.toLowerCase().includes(term))
       .sort((a, b) => Number(!a.name.toLowerCase().startsWith(term)) - Number(!b.name.toLowerCase().startsWith(term)))
@@ -53,23 +49,30 @@ export function SearchWidget({ block }: { block: BlockOf<"search"> }) {
     }
   }, [open])
 
-  const template = engine === "custom" ? customUrl : ENGINES[engine].url
-  const engineName = ENGINES[engine].name
+  const template = engineTemplate(engine, customUrl)
+  const engineName = ENGINE_NAMES[engine]
+  const shortcuts = config.settings.search.shortcuts
+  const bang = parseShortcut(q, shortcuts)
 
-  const go = (url: string, sameTab = !newTab) => {
-    if (!isSafeHref(url)) return
-    if (sameTab) window.location.href = url
-    else window.open(url, "_blank", "noopener,noreferrer")
+  const go = (url: string | null) => {
+    if (url) openLink(url, "", newTab ? "new" : "same")
+    setQ("")
+  }
+  const launch = (app: App, alt = false) => {
+    openLink(app.url, app.name, alt ? "overlay" : app.target === "same" ? "same" : app.target === "overlay" ? "overlay" : "new")
     setQ("")
   }
 
-  const submit = () => {
+  // Order: an app picked in the list, a search shortcut (!yt …), a typed address, a web search.
+  const submit = (alt = false) => {
     const term = q.trim()
     if (!term) return
     const pick = matches[active]
-    if (pick) return go(pick.url, pick.target === "same")
-    if (/^https?:\/\/\S+$/i.test(term)) return go(term)
-    if (template.includes("%s")) go(template.replace("%s", encodeURIComponent(term)))
+    if (pick) return launch(pick, alt)
+    if (bang) return go(fillTemplate(bang.shortcut.url, bang.term))
+    const url = asUrl(term)
+    if (url) return go(url)
+    go(fillTemplate(template, term))
   }
 
   return (
@@ -82,7 +85,7 @@ export function SearchWidget({ block }: { block: BlockOf<"search"> }) {
           submit()
         }}
       >
-        <label ref={anchor} className="flex h-12 items-center gap-3 rounded-lg bg-muted/70 px-3.5 ring-ring/40 transition-shadow focus-within:ring-2">
+        <label ref={anchor} className="flex h-12 items-center gap-3 rounded-full border bg-muted px-4 ring-ring/40 transition-shadow focus-within:ring-2">
           <Search className="size-[1.1rem] shrink-0 text-muted-foreground" aria-hidden />
           <span className="sr-only">Search</span>
           <input
@@ -101,6 +104,9 @@ export function SearchWidget({ block }: { block: BlockOf<"search"> }) {
               } else if (e.key === "ArrowUp") {
                 e.preventDefault()
                 setActive((i) => Math.max(i - 1, 0))
+              } else if (e.key === "Enter" && e.altKey) {
+                e.preventDefault()
+                submit(true)
               } else if (e.key === "Escape") {
                 e.stopPropagation()
                 setQ("")
@@ -111,59 +117,66 @@ export function SearchWidget({ block }: { block: BlockOf<"search"> }) {
             aria-expanded={open}
             aria-controls={listId}
             aria-autocomplete="list"
-            placeholder={searchApps ? `Search apps or ${engineName}` : `Search ${engineName}`}
+            placeholder={bang ? `Search ${bang.shortcut.name || bang.shortcut.key}` : searchApps ? `Search apps or ${engineName}` : `Search ${engineName}`}
             className="h-full min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
             autoComplete="off"
             spellCheck={false}
           />
-          <kbd className="hidden rounded border px-1.5 text-xs text-muted-foreground @[22rem]:inline">/</kbd>
+          {bang ? (
+            <span className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">{bang.shortcut.name || bang.shortcut.key}</span>
+          ) : (
+            <kbd className="hidden rounded-md border px-1.5 font-kbd text-xs text-muted-foreground @[22rem]:inline">/</kbd>
+          )}
         </label>
       </form>
 
       {open && rect && createPortal(
-        <ul
-          id={listId}
-          role="listbox"
-          style={{ position: "fixed", left: rect.left, top: rect.bottom + 6, width: rect.width }}
-          className="z-50 overflow-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-2xl"
-        >
-          {matches.map((app, i) => (
+        // Positioned in screen pixels; the list inside gets the block's zoom.
+        <div className="fixed z-50" style={{ left: rect.left, top: rect.bottom + 6, width: rect.width }}>
+          <ul
+            id={listId}
+            role="listbox"
+            style={zoom !== 1 ? { zoom } : undefined}
+            className="overflow-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-2xl"
+          >
+            {matches.map((app, i) => (
+              <li
+                key={app.id}
+                role="option"
+                aria-selected={i === active}
+                onMouseEnter={() => setActive(i)}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  launch(app, e.altKey)
+                }}
+                className={cn(
+                  "flex cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 text-sm",
+                  i === active && "bg-accent",
+                )}
+              >
+                <AppIcon app={app} className="size-5 text-[0.65rem]" />
+                <span className="font-medium">{app.name}</span>
+                <span className="truncate text-muted-foreground">{app.description}</span>
+              </li>
+            ))}
             <li
-              key={app.id}
               role="option"
-              aria-selected={i === active}
-              onMouseEnter={() => setActive(i)}
+              aria-selected={active === matches.length}
+              onMouseEnter={() => setActive(matches.length)}
               onMouseDown={(e) => {
                 e.preventDefault()
-                go(app.url, app.target === "same")
+                go(fillTemplate(template, q.trim()))
               }}
               className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 text-sm",
-                i === active && "bg-accent",
+                "flex cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 text-sm text-muted-foreground",
+                active === matches.length && "bg-accent text-accent-foreground",
               )}
             >
-              <AppIcon app={app} className="size-5 text-[0.65rem]" />
-              <span className="font-medium">{app.name}</span>
-              <span className="truncate text-muted-foreground">{app.description}</span>
+              <Search className="size-4" aria-hidden />
+              Search {engineName} for “{q.trim()}”
             </li>
-          ))}
-          <li
-            role="option"
-            aria-selected={active === matches.length}
-            onMouseEnter={() => setActive(matches.length)}
-            onMouseDown={(e) => {
-              e.preventDefault()
-              if (template.includes("%s")) go(template.replace("%s", encodeURIComponent(q.trim())))
-            }}
-            className={cn(
-              "flex cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 text-sm text-muted-foreground",
-              active === matches.length && "bg-accent text-accent-foreground",
-            )}
-          >
-            <Search className="size-4" aria-hidden />
-            Search {engineName} for “{q.trim()}”
-          </li>
-        </ul>,
+          </ul>
+        </div>,
         document.body,
       )}
     </div>

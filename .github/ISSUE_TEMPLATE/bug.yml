@@ -1,0 +1,27 @@
+name: Bug report
+description: Something doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead. Screenshots help.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Image tag or version
+      placeholder: astaldoo/tidedeck:latest (pulled 2026-11-10)
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: Firefox 133 on Windows, Safari on iPhone …
+  - type: textarea
+    id: logs
+    attributes:
+      label: Container log
+      description: Output of `docker logs tidedeck` around the problem. Remove anything private.
+      render: text

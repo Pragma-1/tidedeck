@@ -25,11 +25,16 @@ function foregroundFor(rgb: number[]) {
  * The accent is used as-is on dark surfaces. On light surfaces it is
  * darkened until it reaches about 3:1 against the light card colour.
  */
-export function accentVars(hex: string): Record<string, string> {
-  const base = /^#[0-9a-f]{6}$/i.test(hex) ? parse(hex) : parse("#c9a45c")
-  const card = luminance([245, 246, 247])
-  let light = base
-  for (let k = 0; k < 12 && contrast(luminance(light), card) < 3; k++) light = light.map((c) => c * 0.88) as typeof base
+export function accentVars(hex: string, lightHex = ""): Record<string, string> {
+  const valid = (h: string) => /^#[0-9a-f]{6}$/i.test(h)
+  const base = valid(hex) ? parse(hex) : parse(DEFAULT_ACCENT)
+  // A chosen light-theme colour wins; presets carry a hand-picked one (the same pairs Tidewiki uses);
+  // otherwise the dark-theme colour is darkened until it reads well on white.
+  const preset = ACCENT_PRESETS.find((p) => p.hex === hex.toLowerCase())
+  const picked = valid(lightHex) ? lightHex : preset?.light
+  const card = luminance([255, 255, 255])
+  let light = picked ? parse(picked) : base
+  for (let k = 0; !picked && k < 12 && contrast(luminance(light), card) < 4.5; k++) light = light.map((c) => c * 0.88) as typeof base
   return {
     "--brand-d": toHex(base),
     "--brand-d-fg": foregroundFor(base),
@@ -38,11 +43,14 @@ export function accentVars(hex: string): Record<string, string> {
   }
 }
 
-export const ACCENT_PRESETS = [
-  { name: "Brass", hex: "#c9a45c" },
-  { name: "Copper", hex: "#c47f5a" },
-  { name: "Rosewood", hex: "#c0727e" },
-  { name: "Heather", hex: "#a08bc4" },
-  { name: "Sea glass", hex: "#7fb0aa" },
-  { name: "Pewter", hex: "#a3aab3" },
+/** Tidewiki's slate blue: #8eaedb on dark, #3d5a80 on light. */
+export const DEFAULT_ACCENT = "#8eaedb"
+
+export const ACCENT_PRESETS: Array<{ name: string; hex: string; light?: string }> = [
+  { name: "Tide (slate blue)", hex: "#8eaedb", light: "#3d5a80" },
+  { name: "Amber", hex: "#e0b25a", light: "#8a5d17" },
+  { name: "Sea glass", hex: "#7cc4b4", light: "#2f6f62" },
+  { name: "Heather", hex: "#a99ad6", light: "#5b4b8a" },
+  { name: "Rosewood", hex: "#e09aa6", light: "#93404f" },
+  { name: "Pewter", hex: "#a8b0ba", light: "#4f5864" },
 ]

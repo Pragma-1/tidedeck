@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto"
 import { Agent, fetch as ufetch, type Response as UResponse } from "undici"
 import type { MusicAccount } from "@/lib/server/secrets"
+import { readLimited } from "@/lib/server/http"
 
 /** Minimal Subsonic / OpenSubsonic client (Navidrome, Gonic, Ampache…). */
 
@@ -50,7 +51,11 @@ async function call(a: MusicAccount, endpoint: string, params: Record<string, st
     throw new SubsonicError(e.name === "TimeoutError" ? "Server didn't answer in time" : `Can't reach the server (${e.cause?.code ?? e.message})`)
   }
   if (!res.ok) throw new SubsonicError(`Server answered HTTP ${res.status}`)
-  const body = (await res.json().catch(() => null)) as { "subsonic-response"?: Json } | null
+  // Library answers are small; cap them so a misbehaving server can't fill memory.
+  let body: { "subsonic-response"?: Json } | null = null
+  try {
+    body = JSON.parse((await readLimited(res, 8 * 1024 * 1024)).toString("utf8"))
+  } catch {}
   const r = body?.["subsonic-response"]
   if (!r) throw new SubsonicError("That address doesn't look like a Subsonic/Navidrome server")
   if (r.status !== "ok") {

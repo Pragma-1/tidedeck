@@ -2,16 +2,33 @@
 
 import { useState } from "react"
 import { useTheme } from "next-themes"
-import { ArrowLeft, ArrowRight, Check, ChevronDown, CloudOff, Loader2, Moon, Pencil, Plus, Settings, Sun, Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
+import {
+  Check,
+  CloudOff,
+  LayoutDashboard,
+  Loader2,
+  Moon,
+  Pencil,
+  Plus,
+  Search,
+  Settings,
+  Sun,
+} from "lucide-react"
+import type { NameDialogState } from "@/components/dashboard/board-edit"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { AddBlockMenu } from "@/components/dashboard/add-block-menu"
-import { MiniPlayer } from "@/components/widgets/music-widget"
-import { useDashboard } from "@/hooks/use-dashboard"
-import { cn, uid } from "@/lib/utils"
+import dynamic from "next/dynamic"
+import { usePlayer } from "@/hooks/use-player"
+import { loadPart } from "@/lib/stale-build"
+import { getDashboard, useDashboard } from "@/hooks/use-dashboard"
+import { useIsDark } from "@/hooks/use-is-dark"
+import { cn } from "@/lib/utils"
+
+// Edit mode only, and only while music plays: not loaded with the page.
+const AddBlockMenu = dynamic(
+  loadPart(() => import("@/components/dashboard/add-block-menu").then((m) => m.AddBlockMenu), { resumeEdit: true }),
+  { ssr: false },
+)
+const MiniPlayer = dynamic(loadPart(() => import("@/components/widgets/music-widget").then((m) => m.MiniPlayer)), { ssr: false })
 
 function SaveIndicator() {
   const state = useDashboard((s) => s.saveState)
@@ -20,7 +37,7 @@ function SaveIndicator() {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="flex items-center gap-1.5 text-xs text-destructive" role="status">
+          <span className="flex items-center gap-1.5 px-1 text-xs text-[#f08a80]" role="status">
             <CloudOff className="size-3.5" /> Not saved
           </span>
         </TooltipTrigger>
@@ -29,7 +46,7 @@ function SaveIndicator() {
     )
   }
   return (
-    <span className="flex items-center gap-1.5 text-xs text-muted-foreground" role="status" aria-live="polite">
+    <span className="flex items-center gap-1.5 px-1 text-xs text-band-ink/65" role="status" aria-live="polite">
       {state === "idle" ? <Check className="size-3.5" /> : <Loader2 className="size-3.5 animate-spin" />}
       {state === "idle" ? "Saved" : "Saving"}
     </span>
@@ -37,23 +54,28 @@ function SaveIndicator() {
 }
 
 function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme()
-  const dark = resolvedTheme !== "light"
+  const { setTheme } = useTheme()
+  const dark = useIsDark()
+  const label = dark ? "Switch to light theme" : "Switch to dark theme"
   return (
-    <Button variant="ghost" size="icon" aria-label={dark ? "Switch to light theme" : "Switch to dark theme"} onClick={() => setTheme(dark ? "light" : "dark")}>
+    <button type="button" className="band-btn" aria-label={label} title={label} onClick={() => setTheme(dark ? "light" : "dark")}>
       <Sun className="hidden dark:block" />
       <Moon className="dark:hidden" />
-    </Button>
+    </button>
   )
 }
 
-type NameDialogState = { mode: "add" } | { mode: "rename"; id: string; name: string } | null
+// Board renaming, moving and deleting are edit-mode only: loaded on first use, not with the page.
+const BoardOptions = dynamic(loadPart(() => import("@/components/dashboard/board-edit").then((m) => m.BoardOptions), { resumeEdit: true }), { ssr: false })
+const BoardDialogs = dynamic(loadPart(() => import("@/components/dashboard/board-edit").then((m) => m.BoardDialogs), { resumeEdit: true }), { ssr: false })
 
+/** The dark Tidewiki band: brand, boards, actions. The board below overlaps its lower edge. */
 export function Header() {
   const title = useDashboard((s) => s.config.settings.title)
   const boards = useDashboard((s) => s.config.boards)
   const activeId = useDashboard((s) => s.activeBoardId)
   const editing = useDashboard((s) => s.editing)
+  const quickLaunch = useDashboard((s) => s.config.settings.search.quickLaunch)
   const setActive = useDashboard((s) => s.setActiveBoard)
   const requestEdit = useDashboard((s) => s.requestEdit)
   const mutate = useDashboard((s) => s.mutate)
@@ -69,183 +91,129 @@ export function Header() {
       ;[cfg.boards[i], cfg.boards[j]] = [cfg.boards[j], cfg.boards[i]]
     })
 
-  const deleting = boards.find((b) => b.id === confirmDelete)
+  const [dialogsUsed, setDialogsUsed] = useState(false)
+  const showBoardDialogs = dialogsUsed || nameDialog !== null || confirmDelete !== null
+  if (showBoardDialogs && !dialogsUsed) setDialogsUsed(true)
+  const playing = usePlayer((s) => s.blockId !== null)
   const visibleBlockIds = (boards.find((b) => b.id === activeId) ?? boards[0]).blocks.map((b) => b.id)
 
   return (
-    <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 pb-5">
-      <div className="flex min-w-0 flex-wrap items-end gap-x-7 gap-y-2">
-        <h1 className="font-display text-[1.75rem] leading-none font-bold tracking-tight">{title}</h1>
+    <header className="band">
+      <div className="page-col px-4 pt-3.5 pb-16 sm:px-6 lg:px-10">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex min-w-0 items-center gap-2.5 pr-2">
+            <LayoutDashboard className="size-[22px] shrink-0 opacity-85" aria-hidden />
+            <h1 className="truncate text-xl font-[650] tracking-[-0.01em]">{title}</h1>
+          </div>
 
-        {(boards.length > 1 || editing) && (
-          <nav aria-label="Boards" className="-mb-1 flex flex-wrap items-center gap-1">
-            {boards.map((b, i) => {
-              const active = b.id === activeId
-              return (
-                <div key={b.id} className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => setActive(b.id)}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "relative rounded-md px-2.5 py-1.5 text-sm transition-colors hover:text-foreground",
-                      active ? "font-medium text-foreground" : "text-muted-foreground",
+          {(boards.length > 1 || editing) && (
+            <nav aria-label="Boards" className="flex flex-wrap items-center gap-0.5">
+              {boards.map((b, i) => {
+                const active = b.id === activeId
+                return (
+                  <div key={b.id} className="flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => setActive(b.id)}
+                      aria-current={active ? "page" : undefined}
+                      className={cn("band-btn relative", active ? "font-semibold text-band-ink" : "text-band-ink/70")}
+                    >
+                      {b.name}
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "absolute inset-x-2.5 bottom-0.5 h-0.5 rounded-full bg-band-accent transition-opacity",
+                          active ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                    </button>
+                    {editing && active && (
+                      <BoardOptions
+                        board={b}
+                        index={i}
+                        count={boards.length}
+                        onRename={() => setNameDialog({ mode: "rename", id: b.id, name: b.name })}
+                        onMove={(d) => moveBoard(b.id, d)}
+                        onDelete={() => setConfirmDelete(b.id)}
+                      />
                     )}
-                  >
-                    {b.name}
-                    <span
-                      aria-hidden
-                      className={cn("absolute inset-x-2.5 -bottom-px h-0.5 rounded-full bg-primary transition-opacity", active ? "opacity-100" : "opacity-0")}
-                    />
-                  </button>
-                  {editing && active && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" className="size-6" aria-label={`Options for ${b.name}`}>
-                          <ChevronDown className="size-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuItem onSelect={() => setNameDialog({ mode: "rename", id: b.id, name: b.name })}>
-                          <Pencil /> Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled={i === 0} onSelect={() => moveBoard(b.id, -1)}>
-                          <ArrowLeft /> Move left
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled={i === boards.length - 1} onSelect={() => moveBoard(b.id, 1)}>
-                          <ArrowRight /> Move right
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem variant="destructive" disabled={boards.length === 1} onSelect={() => setConfirmDelete(b.id)}>
-                          <Trash2 className="text-destructive" /> Delete board
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-              )
-            })}
-            {editing && (
-              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setNameDialog({ mode: "add" })}>
-                <Plus /> Board
-              </Button>
-            )}
-          </nav>
-        )}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1.5">
-        <MiniPlayer visibleBlockIds={visibleBlockIds} />
-        {editing && (
-          <>
-            <SaveIndicator />
-            <span className="mx-1.5 h-5 w-px bg-border" aria-hidden />
-            <AddBlockMenu>
-              <Button variant="secondary">
-                <Plus /> Add block
-              </Button>
-            </AddBlockMenu>
-            <Button variant="ghost" size="icon" aria-label="Dashboard settings" onClick={() => setSettingsOpen(true)}>
-              <Settings />
-            </Button>
-          </>
-        )}
-        <ThemeToggle />
-        <Button variant={editing ? "default" : "outline"} onClick={() => requestEdit(!editing)} aria-keyshortcuts="e">
-          {editing ? (
-            <>
-              <Check /> Done
-            </>
-          ) : (
-            <>
-              <Pencil /> Edit
-            </>
+                  </div>
+                )
+              })}
+              {editing && (
+                <button type="button" className="band-btn text-band-ink/70" onClick={() => setNameDialog({ mode: "add" })}>
+                  <Plus /> Board
+                </button>
+              )}
+            </nav>
           )}
-        </Button>
+
+          <div className="ml-auto flex flex-wrap items-center gap-1">
+            {playing && <MiniPlayer visibleBlockIds={visibleBlockIds} />}
+            {editing && (
+              <>
+                <SaveIndicator />
+                <span className="mx-1 h-5 w-px bg-band-line" aria-hidden />
+                <AddBlockMenu>
+                  <button type="button" className="band-btn outline">
+                    <Plus /> Add block
+                  </button>
+                </AddBlockMenu>
+                <button type="button" className="band-btn" aria-label="Dashboard settings" title="Dashboard settings" onClick={() => setSettingsOpen(true)}>
+                  <Settings />
+                </button>
+              </>
+            )}
+            {!editing && quickLaunch && (
+              <button
+                type="button"
+                className="band-btn"
+                aria-label="Quick launch"
+                title="Quick launch (Ctrl+K)"
+                aria-keyshortcuts="Control+K Meta+K"
+                onClick={() => getDashboard().setQuickLaunch(true)}
+              >
+                <Search />
+              </button>
+            )}
+            <ThemeToggle />
+            <button
+              type="button"
+              className={cn("band-btn", editing ? "solid" : "outline")}
+              onClick={() => requestEdit(!editing)}
+              aria-keyshortcuts="e"
+            >
+              {editing ? (
+                <>
+                  <Check /> Done
+                </>
+              ) : (
+                <>
+                  <Pencil /> Edit
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {editing && (
+          <p className="mt-2.5 text-xs text-band-ink/60">
+            <span className="[@media(pointer:coarse)]:hidden">
+              Drag a block to move it, pull any corner or edge to resize it, double-click it for settings. Press Esc when you’re done.
+            </span>
+            <span className="hidden [@media(pointer:coarse)]:inline">Move a block by its grip, resize it from any corner or edge, tap the gear for settings.</span>
+          </p>
+        )}
       </div>
 
-      <NameDialog
-        state={nameDialog}
-        onClose={() => setNameDialog(null)}
-        onSubmit={(name) => {
-          if (nameDialog?.mode === "rename") {
-            const id = nameDialog.id
-            mutate((cfg) => {
-              const b = cfg.boards.find((x) => x.id === id)
-              if (b) b.name = name
-            })
-          } else {
-            const id = uid()
-            mutate((cfg) => void cfg.boards.push({ id, name, blocks: [], layouts: {} }))
-            setActive(id)
-          }
-          setNameDialog(null)
-        }}
-      />
-
-      <Dialog open={!!deleting} onOpenChange={(o) => !o && setConfirmDelete(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete “{deleting?.name}”?</DialogTitle>
-            <DialogDescription>
-              {deleting?.blocks.length
-                ? `Its ${deleting.blocks.length} block${deleting.blocks.length === 1 ? "" : "s"} will be deleted too. A backup from the last few minutes stays in the data folder.`
-                : "The board is empty."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDelete(null)}>
-              Keep board
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                const id = confirmDelete
-                mutate((cfg) => void (cfg.boards = cfg.boards.filter((b) => b.id !== id)))
-                const rest = boards.filter((b) => b.id !== id)
-                setActive(rest[0].id)
-                setConfirmDelete(null)
-              }}
-            >
-              Delete board
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {showBoardDialogs && (
+        <BoardDialogs
+          nameDialog={nameDialog}
+          setNameDialog={setNameDialog}
+          confirmDelete={confirmDelete}
+          setConfirmDelete={setConfirmDelete}
+        />
+      )}
     </header>
-  )
-}
-
-function NameDialog({ state, onClose, onSubmit }: { state: NameDialogState; onClose: () => void; onSubmit: (name: string) => void }) {
-  const [name, setName] = useState("")
-  return (
-    <Dialog
-      open={!!state}
-      onOpenChange={(o) => {
-        if (o) return
-        onClose()
-      }}
-    >
-      <DialogContent className="sm:max-w-sm" onOpenAutoFocus={() => setName(state?.mode === "rename" ? state.name : "")}>
-        <form
-          className="grid gap-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (name.trim()) onSubmit(name.trim().slice(0, 60))
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>{state?.mode === "rename" ? "Rename board" : "New board"}</DialogTitle>
-            <DialogDescription>Boards show up as tabs next to the title.</DialogDescription>
-          </DialogHeader>
-          <Input aria-label="Board name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Media" maxLength={60} />
-          <DialogFooter>
-            <Button type="submit" disabled={!name.trim()}>
-              {state?.mode === "rename" ? "Rename" : "Create board"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }

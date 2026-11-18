@@ -8,7 +8,7 @@ import { ADD_MENU } from "@/lib/widget-meta"
 
 const GROUPS = [
   ["app", "apps", "bookmarks"],
-  ["search", "clock", "calendar", "weather", "system", "rss", "notes", "iframe"],
+  ["search", "clock", "calendar", "weather", "system", "rss", "notes", "checklist", "iframe"],
   ["music"],
 ]
 

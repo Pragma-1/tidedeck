@@ -1,20 +1,26 @@
 "use client"
 
-import { Copy, GripVertical, Settings2, Trash2 } from "lucide-react"
-import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import dynamic from "next/dynamic"
 import { AppWidget, AppsWidget } from "@/components/widgets/app-widgets"
-import { IframeWidget, NotesWidget, RssWidget, SystemWidget } from "@/components/widgets/data-widgets"
-import { MusicWidget } from "@/components/widgets/music-widget"
+import { IframeWidget, RssWidget, SystemWidget } from "@/components/widgets/data-widgets"
+import { ChecklistWidget } from "@/components/widgets/checklist-widget"
 import { SearchWidget } from "@/components/widgets/search-widget"
 import { CalendarWidget, ClockWidget } from "@/components/widgets/time-widgets"
 import { WeatherWidget } from "@/components/widgets/weather-widget"
-import { getDashboard, useDashboard } from "@/hooks/use-dashboard"
-import { duplicateBlock, removeBlock } from "@/lib/board-ops"
+import { useDashboard } from "@/hooks/use-dashboard"
+import { BlockZoomContext } from "@/hooks/use-block-zoom"
+import { infoFor } from "@/lib/block-info"
 import type { Block } from "@/lib/schema"
 import { cn } from "@/lib/utils"
-import { metaFor } from "@/lib/widget-meta"
+import { loadPart } from "@/lib/stale-build"
+
+// Loaded only where needed: the player and the Markdown renderer only on boards
+// that have them, the edit toolbar only in edit mode.
+const MusicWidget = dynamic(loadPart(() => import("@/components/widgets/music-widget").then((m) => m.MusicWidget)))
+const NotesWidget = dynamic(loadPart(() => import("@/components/widgets/notes-widget").then((m) => m.NotesWidget)))
+const BlockToolbar = dynamic(loadPart(() => import("@/components/dashboard/block-toolbar").then((m) => m.BlockToolbar), { resumeEdit: true }), {
+  ssr: false,
+})
 
 function WidgetBody({ block, editing }: { block: Block; editing: boolean }) {
   switch (block.type) {
@@ -36,6 +42,8 @@ function WidgetBody({ block, editing }: { block: Block; editing: boolean }) {
       return <RssWidget block={block} editing={editing} />
     case "notes":
       return <NotesWidget block={block} editing={editing} />
+    case "checklist":
+      return <ChecklistWidget block={block} editing={editing} />
     case "iframe":
       return <IframeWidget block={block} editing={editing} />
     case "music":
@@ -46,81 +54,42 @@ function WidgetBody({ block, editing }: { block: Block; editing: boolean }) {
 export function BlockFrame({ block, boardId }: { block: Block; boardId: string }) {
   const editing = useDashboard((s) => s.editing)
   const openSettings = useDashboard((s) => s.openBlockSettings)
-  const updateBoard = useDashboard((s) => s.updateBoard)
-  const meta = metaFor(block.type)
+  const bp = useDashboard((s) => s.breakpoint)
+  // Shown zoom comes from CSS (--bz, set per screen size by the board); this is the same value, for scripts.
+  const zoom = block.zoom[bp] ?? 1
+  const info = infoFor(block.type)
   const titled = block.showTitle && block.title.trim() !== ""
   const arrange = editing && block.type === "apps" && block.props.apps.length > 1
-  const label = block.title || (block.type === "app" ? block.props.app.name : meta.label)
-
-  const remove = () => {
-    const before = getDashboard().config
-    updateBoard(boardId, (b) => removeBlock(b, block.id))
-    toast(`Removed “${label}”`, { action: { label: "Undo", onClick: () => getDashboard().replaceConfig(before) } })
-  }
+  const label = block.title || (block.type === "app" ? block.props.app.name : info.label)
 
   return (
     <section
       aria-label={label}
-      className={cn("block-surface relative flex h-full flex-col overflow-hidden rounded-xl", editing && "select-none")}
+      className={cn("block-surface tide-corners relative flex h-full flex-col overflow-hidden", editing && "select-none")}
+      // On the section, so a double-click on re-orderable tiles opens the settings too.
+      onDoubleClick={editing ? (e) => !(e.target as HTMLElement).closest(".no-drag") && openSettings(block.id) : undefined}
     >
-      {titled && (
-        <h2 className="truncate px-4 pt-3 pb-2 font-display text-[0.95rem] font-semibold tracking-tight">{block.title}</h2>
-      )}
-      {/* App groups stay interactive while editing so their tiles can be re-ordered; gaps between tiles fall through to the block's drag layer. */}
-      <div
-        className={cn("@container relative min-h-0 flex-1", arrange && "pointer-events-none z-10")}
-        inert={(editing && !arrange) || undefined}
-      >
-        <WidgetBody block={block} editing={editing} />
+      {/* Content zoom (title and body; the edit controls keep their size). */}
+      <div className="flex min-h-0 flex-1 flex-col" style={{ zoom: "var(--bz, 1)" }}>
+        {titled && (
+          <h2 className="truncate px-4 pt-3 pb-2 text-[0.95rem] font-[650] tracking-[-0.01em]">{block.title}</h2>
+        )}
+        {/* App groups stay interactive while editing so their tiles can be re-ordered; gaps between tiles fall through to the block's drag layer. */}
+        <div
+          className={cn("@container relative min-h-0 flex-1", arrange && "pointer-events-none z-10")}
+          inert={(editing && !arrange) || undefined}
+        >
+          <BlockZoomContext.Provider value={zoom}>
+            <WidgetBody block={block} editing={editing} />
+          </BlockZoomContext.Provider>
+        </div>
       </div>
 
       {editing && (
         <div
-          className="corner-marks absolute inset-0 cursor-grab rounded-xl bg-primary/[0.04] active:cursor-grabbing"
-          onDoubleClick={() => openSettings(block.id)}
+          className="edit-outline tide-corners absolute inset-0 cursor-grab bg-primary/[0.04] active:cursor-grabbing"
         >
-          <div className="absolute top-2 right-7 z-20 flex items-center gap-0.5 rounded-lg border bg-popover/95 p-0.5 pl-2 shadow-lg">
-            <span className="flex items-center gap-1 pr-1 text-xs text-muted-foreground">
-              <GripVertical className="size-3.5" aria-hidden />
-              {meta.label}
-            </span>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button size="icon-sm" variant="ghost" className="no-drag" aria-label={`Settings for ${label}`} onClick={() => openSettings(block.id)}>
-                  <Settings2 />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Settings</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  className="no-drag"
-                  aria-label={`Duplicate ${label}`}
-                  onClick={() => updateBoard(boardId, (b) => void duplicateBlock(b, block.id))}
-                >
-                  <Copy />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Duplicate</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  className="no-drag hover:text-destructive"
-                  aria-label={`Remove ${label}`}
-                  onClick={remove}
-                >
-                  <Trash2 />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Remove</TooltipContent>
-            </Tooltip>
-          </div>
+          <BlockToolbar block={block} boardId={boardId} label={label} typeLabel={info.label} zoom={zoom} />
         </div>
       )}
     </section>

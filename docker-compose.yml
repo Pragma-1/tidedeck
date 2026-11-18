@@ -1,10 +1,21 @@
 services:
   tidedeck:
     image: astaldoo/tidedeck:latest
+    # build: .   # build from source instead of pulling the image
     container_name: tidedeck
     restart: unless-stopped
+    # Hardening: no privilege escalation, only the capabilities the entrypoint
+    # needs to hand ./data to PUID:PGID and drop to that user (the server
+    # itself then runs with none), read-only system files.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    read_only: true
+    tmpfs:
+      - /tmp
     ports:
-      - "${PORT}:3000"
+      - "${PORT:?Set PORT in .env}:3000"
     environment:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
@@ -12,3 +23,5 @@ services:
       AUTH_DISABLED: ${AUTH_DISABLED:-}
     volumes:
       - ./data:/app/data
+      # Optional: let the "Server resources" block measure a host disk.
+      # - /mnt/tank:/mnt/tank:ro

@@ -3,7 +3,7 @@ import { configSchema, type DashboardConfig } from "@/lib/schema"
 /** First-run dashboard. Replaced the moment you edit anything. */
 export function defaultConfig(): DashboardConfig {
   return configSchema.parse({
-    version: 1,
+    version: 2,
     settings: {},
     boards: [
       {
@@ -50,13 +50,13 @@ export function defaultConfig(): DashboardConfig {
         ],
         layouts: {
           lg: [
-            { i: "search", x: 0, y: 0, w: 8, h: 2 },
-            { i: "clock", x: 8, y: 0, w: 4, h: 2 },
-            { i: "infra", x: 0, y: 2, w: 4, h: 5 },
-            { i: "media", x: 4, y: 2, w: 4, h: 5 },
-            { i: "weather", x: 8, y: 2, w: 4, h: 5 },
-            { i: "system", x: 0, y: 7, w: 4, h: 5 },
-            { i: "notes", x: 4, y: 7, w: 4, h: 5 },
+            { i: "search", x: 0, y: 0, w: 16, h: 4 },
+            { i: "clock", x: 16, y: 0, w: 8, h: 4 },
+            { i: "infra", x: 0, y: 4, w: 8, h: 10 },
+            { i: "media", x: 8, y: 4, w: 8, h: 10 },
+            { i: "weather", x: 16, y: 4, w: 8, h: 10 },
+            { i: "system", x: 0, y: 14, w: 8, h: 10 },
+            { i: "notes", x: 8, y: 14, w: 8, h: 10 },
           ],
         },
       },

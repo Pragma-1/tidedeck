@@ -1,44 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
+import { usePolling } from "@/hooks/use-polling"
 import type { BlockOf } from "@/lib/schema"
 import { cn, formatBytes, formatDuration, isSafeHref } from "@/lib/utils"
-
-function usePolling<T>(url: string | null, intervalMs: number) {
-  const [data, setData] = useState<T | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    if (!url) return
-    let cancelled = false
-    const load = async () => {
-      if (document.hidden) return
-      try {
-        const res = await fetch(url, { cache: "no-store" })
-        const json = await res.json()
-        if (cancelled) return
-        if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`)
-        setData(json as T)
-        setError(null)
-      } catch (e) {
-        if (!cancelled) setError((e as Error).message)
-      }
-    }
-    void load()
-    const t = setInterval(load, intervalMs)
-    return () => {
-      cancelled = true
-      clearInterval(t)
-    }
-  }, [url, intervalMs])
-  return { data, error }
-}
 
 // --- Server resources -------------------------------------------------------
 
 type SystemStats = {
-  hostname: string
   cpu: { percent: number; cores: number; load: number[] }
   memory: { total: number; used: number; percent: number }
   disk: { path: string; total: number; used: number; percent: number } | { path: string; error: string }
@@ -163,35 +131,8 @@ export function RssWidget({ block, editing }: { block: BlockOf<"rss">; editing: 
   )
 }
 
-// --- Notes and embeds -------------------------------------------------------
-
-export function NotesWidget({ block, editing }: { block: BlockOf<"notes">; editing: boolean }) {
-  const content = block.props.content.trim()
-  if (!content) {
-    return <p className="px-4 pb-4 text-sm text-muted-foreground">{editing ? "Open the settings to write something." : "Empty note."}</p>
-  }
-  return (
-    <div className="prose-notes h-full overflow-y-auto px-4 pb-4">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ href, children }) => (
-            <a href={href && isSafeHref(href) ? href : undefined} target="_blank" rel="noopener noreferrer">
-              {children}
-            </a>
-          ),
-          img: ({ src, alt }) =>
-            typeof src === "string" && /^https?:\/\//.test(src) ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={src} alt={alt ?? ""} className="max-w-full rounded-md" referrerPolicy="no-referrer" />
-            ) : null,
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-    </div>
-  )
-}
+// --- Embeds ------------------------------------------------------------------
+// (Notes are in notes-widget.tsx: the Markdown renderer is only loaded on boards that have notes.)
 
 export function IframeWidget({ block, editing }: { block: BlockOf<"iframe">; editing: boolean }) {
   const { url, allowFullscreen } = block.props
@@ -205,6 +146,8 @@ export function IframeWidget({ block, editing }: { block: BlockOf<"iframe">; edi
       loading="lazy"
       referrerPolicy="no-referrer"
       allowFullScreen={allowFullscreen}
+      // No allow-top-navigation: an embedded page can't redirect the dashboard away.
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
       className="h-full w-full border-0 bg-white"
     />
   )

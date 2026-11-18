@@ -2,8 +2,6 @@ import os from "node:os"
 import { promises as fs } from "node:fs"
 
 export type SystemStats = {
-  hostname: string
-  platform: string
   cpu: { percent: number; cores: number; load: number[] }
   memory: { total: number; used: number; percent: number }
   disk: { path: string; total: number; used: number; percent: number } | { path: string; error: string }
@@ -51,8 +49,6 @@ export async function getSystemStats(diskPath: string): Promise<SystemStats> {
     disk = { path: diskPath, error: "Path not found inside the container" }
   }
   return {
-    hostname: os.hostname(),
-    platform: `${os.type()} ${os.release()}`,
     cpu: { percent: await cpuPercent(), cores: os.cpus().length, load: os.loadavg() },
     memory: { total, used, percent: (used / total) * 100 },
     disk,

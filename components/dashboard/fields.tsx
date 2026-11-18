@@ -25,7 +25,7 @@ export function Field({
 }) {
   const id = useId()
   return (
-    <div className={cn("grid gap-1.5", className)}>
+    <div className={cn("grid content-start gap-1.5", className)}>
       <Label htmlFor={id}>{label}</Label>
       {children(id)}
       {error ? (

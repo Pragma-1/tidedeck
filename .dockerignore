@@ -5,3 +5,5 @@ data
 .git
 *.md
 !README.md
+docs
+.github

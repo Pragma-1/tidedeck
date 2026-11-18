@@ -45,10 +45,25 @@ async function writeAtomic(file: string, data: string) {
 
 async function load() {
   await fs.mkdir(DATA_DIR, { recursive: true })
+  let text: string | null = null
   try {
-    const raw = JSON.parse(await fs.readFile(CONFIG_FILE, "utf8")) as { rev?: number; config?: unknown }
+    text = await fs.readFile(CONFIG_FILE, "utf8")
+  } catch (err) {
+    // Missing: first run. Anything else (permissions, too many open files):
+    // fail and retry later instead of replacing the dashboard with the default.
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
+  }
+  try {
+    if (text === null) throw Object.assign(new Error("missing"), { code: "ENOENT" })
+    const raw = JSON.parse(text) as { rev?: number; config?: unknown }
     state.config = configSchema.parse(raw.config)
     state.rev = typeof raw.rev === "number" && raw.rev > 0 ? raw.rev : 1
+    // Early builds defaulted to a brass accent; move those dashboards to the shared Tide colour.
+    if (state.config.settings.accent.toLowerCase() === "#c9a45c") {
+      state.config.settings.accent = "#8eaedb"
+      state.rev += 1
+      await writeAtomic(CONFIG_FILE, JSON.stringify({ rev: state.rev, config: state.config }, null, 2))
+    }
   } catch (err) {
     const missing = (err as NodeJS.ErrnoException).code === "ENOENT"
     if (!missing) {
@@ -56,14 +71,32 @@ async function load() {
       await fs.rename(CONFIG_FILE, broken).catch(() => {})
       console.error(`[tidedeck] dashboard.json was unreadable, moved to ${broken}:`, err)
     }
-    state.config = defaultConfig()
+    // Damaged: fall back to the newest backup that still validates, else start fresh.
+    const restored = missing ? null : await newestValidBackup()
+    state.config = restored ?? defaultConfig()
     state.rev = 1
+    if (restored) console.error("[tidedeck] restored the dashboard from the newest backup")
     await writeAtomic(CONFIG_FILE, JSON.stringify({ rev: state.rev, config: state.config }, null, 2))
   }
 }
 
+async function newestValidBackup(): Promise<DashboardConfig | null> {
+  const files = await fs.readdir(BACKUP_DIR).catch(() => [] as string[])
+  for (const f of files.filter((f) => f.startsWith("dashboard-")).sort().reverse()) {
+    try {
+      const raw = JSON.parse(await fs.readFile(path.join(BACKUP_DIR, f), "utf8")) as { config?: unknown }
+      return configSchema.parse(raw.config)
+    } catch {}
+  }
+  return null
+}
+
 export async function getConfig(): Promise<{ config: DashboardConfig; rev: number }> {
-  state.loaded ??= load()
+  state.loaded ??= load().catch((err) => {
+    state.loaded = null
+    console.error("[tidedeck] could not read dashboard.json:", (err as Error).message)
+    throw err
+  })
   await state.loaded
   return { config: state.config, rev: state.rev }
 }

@@ -3,7 +3,16 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { createStore, useStore, type StoreApi } from "zustand"
 import { toast } from "sonner"
-import { configSchema, type Block, type Board, type DashboardConfig } from "@/lib/schema"
+import type { Block, Board, BreakpointKey, DashboardConfig } from "@/lib/schema"
+
+// The schema checks a change before it is sent (the server checks it again in any
+// case). It is loaded with the first change instead of with the page.
+let schema: typeof import("@/lib/schema") | null = null
+const loadSchema = () =>
+  import("@/lib/schema").then(
+    (m) => void (schema = m),
+    () => {}, // without it the server's check alone decides
+  )
 
 export type AuthInfo = { configured: boolean; authenticated: boolean; disabled: boolean }
 export type SaveState = "idle" | "pending" | "saving" | "error"
@@ -19,6 +28,13 @@ export type DashboardState = {
   authDialog: null | "login" | "setup"
   editingBlockId: string | null
   settingsOpen: boolean
+  /** Screen size class the board is laid out for right now (picks layout and module zoom). */
+  breakpoint: BreakpointKey
+  quickLaunch: boolean
+  /** Wall-screen mode (?kiosk): no header, no editing. */
+  kiosk: boolean
+  /** Text quick launch opens with (the key typed to open it). */
+  quickLaunchSeed: string
 }
 
 type Actions = {
@@ -28,6 +44,9 @@ type Actions = {
   setAuthDialog: (d: DashboardState["authDialog"]) => void
   openBlockSettings: (id: string | null) => void
   setSettingsOpen: (open: boolean) => void
+  setBreakpoint: (bp: BreakpointKey) => void
+  setQuickLaunch: (open: boolean, seed?: string) => void
+  setKiosk: (on: boolean) => void
   /** Apply a change locally; it is saved to the server a moment later. */
   mutate: (fn: (draft: DashboardConfig) => void) => void
   updateBoard: (boardId: string, fn: (board: Board) => void) => void
@@ -48,6 +67,10 @@ function createDashboardStore(init: Init) {
     authDialog: null,
     editingBlockId: null,
     settingsOpen: false,
+    breakpoint: "lg",
+    quickLaunch: false,
+    kiosk: false,
+    quickLaunchSeed: "",
 
     setActiveBoard: (id) => {
       set({ activeBoardId: id })
@@ -57,6 +80,7 @@ function createDashboardStore(init: Init) {
     },
 
     requestEdit: (on) => {
+      if (on && get().kiosk) return
       if (!on) {
         void flushSave()
         set({ editing: false, editingBlockId: null })
@@ -71,8 +95,14 @@ function createDashboardStore(init: Init) {
     setAuthDialog: (authDialog) => set({ authDialog }),
     openBlockSettings: (editingBlockId) => set({ editingBlockId }),
     setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+    setQuickLaunch: (quickLaunch, seed = "") => set({ quickLaunch, quickLaunchSeed: seed }),
+    setKiosk: (kiosk) => set(kiosk ? { kiosk, editing: false } : { kiosk }),
+    setBreakpoint: (breakpoint) => {
+      if (get().breakpoint !== breakpoint) set({ breakpoint })
+    },
 
     mutate: (fn) => {
+      if (!schema) void loadSchema()
       const draft = structuredClone(get().config)
       fn(draft)
       set({ config: draft, saveState: "pending" })
@@ -167,8 +197,10 @@ export async function flushSave(keepalive = false): Promise<void> {
   }
 
   const { config, rev } = getDashboard()
-  const check = configSchema.safeParse(config)
-  if (!check.success) {
+  // Not waited for (that would let a second save start alongside this one): if the
+  // schema isn't loaded yet, the server's check alone decides.
+  const check = schema?.configSchema.safeParse(config)
+  if (check && !check.success) {
     const issue = check.error.issues[0]
     setDashboard({ saveState: "error", saveError: `${issue.message} (${issue.path.join(" › ")})` })
     return

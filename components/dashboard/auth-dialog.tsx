@@ -18,6 +18,7 @@ export async function postAuth(body: Record<string, string>) {
 }
 
 export function PasswordForm({ mode, onDone }: { mode: "login" | "setup"; onDone: () => void }) {
+  const [code, setCode] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -27,7 +28,7 @@ export function PasswordForm({ mode, onDone }: { mode: "login" | "setup"; onDone
     e.preventDefault()
     if (mode === "setup" && password !== confirm) return setError("The two passwords don't match")
     setBusy(true)
-    const r = await postAuth({ action: mode, password })
+    const r = await postAuth(mode === "setup" ? { action: mode, password, code } : { action: mode, password })
     setBusy(false)
     if (!r.ok) return setError(r.error)
     onDone()
@@ -35,6 +36,32 @@ export function PasswordForm({ mode, onDone }: { mode: "login" | "setup"; onDone
 
   return (
     <form onSubmit={submit} className="grid gap-4">
+      {mode === "setup" && (
+        <Field
+          label="Setup code"
+          hint={
+            <>
+              Printed in the server log when Tidedeck starts. Run <code className="rounded bg-muted px-1 font-mono">docker logs tidedeck</code> to see it.
+            </>
+          }
+        >
+          {(id) => (
+            <Input
+              id={id}
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value)
+                setError(null)
+              }}
+              placeholder="ABCD-EFGH"
+              autoComplete="off"
+              spellCheck={false}
+              className="font-mono uppercase"
+              autoFocus
+            />
+          )}
+        </Field>
+      )}
       <Field label="Password" error={mode === "login" ? error : null} hint={mode === "setup" ? "At least 8 characters." : undefined}>
         {(id) => (
           <Input
@@ -46,7 +73,7 @@ export function PasswordForm({ mode, onDone }: { mode: "login" | "setup"; onDone
               setPassword(e.target.value)
               setError(null)
             }}
-            autoFocus
+            autoFocus={mode === "login"}
           />
         )}
       </Field>
@@ -67,7 +94,7 @@ export function PasswordForm({ mode, onDone }: { mode: "login" | "setup"; onDone
         </Field>
       )}
       <DialogFooter>
-        <Button type="submit" disabled={busy || password.length === 0}>
+        <Button type="submit" disabled={busy || password.length === 0 || (mode === "setup" && code.trim().length < 9)}>
           {mode === "setup" ? "Set password and edit" : "Sign in"}
         </Button>
       </DialogFooter>
@@ -89,7 +116,7 @@ export function AuthDialog() {
             <DialogTitle>{mode === "setup" ? "Protect your dashboard" : "Sign in to edit"}</DialogTitle>
             <DialogDescription>
               {mode === "setup"
-                ? "Choose an admin password. Anyone can view the dashboard, but only you can change it."
+                ? "Choose an admin password. To prove this is your server, enter the setup code from its log."
                 : "Enter the admin password to change this dashboard."}
             </DialogDescription>
           </DialogHeader>

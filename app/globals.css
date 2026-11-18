@@ -2,70 +2,105 @@
 @import "tw-animate-css";
 @import "react-grid-layout/css/styles.css";
 
-@custom-variant dark (&:is(.dark *));
+/* Tide family: same theme switch as Tidewiki (data-theme on <html>, system when absent). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
-  Palette: pewter surfaces, paper text, brass accent (user-adjustable).
-  --brand-* is written at runtime from the dashboard's accent setting.
+  Design tokens shared with Tidewiki: neutral stone greys, a muted slate-blue
+  accent and a soft amber complement. --brand-* comes from the accent setting.
 */
 :root {
-  --brand-l: #8f6f2c;
+  --brand-l: #3d5a80;
   --brand-l-fg: #ffffff;
-  --brand-d: #c9a45c;
-  --brand-d-fg: #1d1a13;
+  --brand-d: #8eaedb;
+  --brand-d-fg: #0f1216;
   --card-alpha: 1;
 
-  --radius: 0.875rem;
-  --background: #e4e6e9;
-  --foreground: #23262b;
-  --card: #f5f6f7;
-  --card-foreground: #23262b;
-  --popover: #f8f9fa;
-  --popover-foreground: #23262b;
+  --bg: #f2f2ef;
+  --band: #2a2f36;
+  --band-ink: #eceef1;
+  --band-line: rgba(255, 255, 255, 0.14);
+  --band-hover: rgba(255, 255, 255, 0.1);
+  /* The band is always dark, so it uses the dark-theme accent in both themes. */
+  --band-accent: var(--brand-d);
+  --sheet: #ffffff;
+  --panel: #f7f7f5;
+  --ink: #1e2227;
+  --ink-2: #5c636d;
+  --line: #e1e1dc;
+  --line-2: #ecece8;
+  --hl: #f6ead2;
+  --hl-strong: #b7802a;
+  --danger: #b3261e;
+  --code: #f4f5f7;
+  --shadow: 0 1px 0 rgba(20, 24, 30, 0.04), 0 12px 32px -20px rgba(20, 24, 30, 0.28);
+  --sans: "Inter Variable", Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --radius: 0.9rem;
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--sheet);
+  --card-foreground: var(--ink);
+  --popover: var(--sheet);
+  --popover-foreground: var(--ink);
   --primary: var(--brand-l);
   --primary-foreground: var(--brand-l-fg);
-  --secondary: #d9dce1;
-  --secondary-foreground: #23262b;
-  --muted: #dde0e4;
-  --muted-foreground: #5e636b;
-  --accent: #dcdfe3;
-  --accent-foreground: #23262b;
-  --destructive: #b5473a;
-  --border: #c9cdd3;
-  --input: #c3c8ce;
+  --secondary: #ecece8;
+  --secondary-foreground: var(--ink);
+  --muted: var(--panel);
+  --muted-foreground: var(--ink-2);
+  --accent: #efefec;
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: #d6d6d0;
   --ring: var(--brand-l);
-  --ok: #4f8a5e;
-  --down: #b5473a;
-  --grid-line: color-mix(in oklab, var(--brand-l) 9%, transparent);
+  --ok: #2f6f4f;
+  --down: #b3261e;
+  /* Status lights: saturated, so green, red and "still checking" are told apart at a glance. */
+  --led-ok: #14a44d;
+  --led-down: #e0261b;
+  --grid-line: color-mix(in oklab, var(--brand-l) 7%, transparent);
+  color-scheme: light;
 }
 
-.dark {
-  --background: #22252a;
-  --foreground: #e7e3da;
-  --card: #2b2f35;
-  --card-foreground: #e7e3da;
-  --popover: #2e3238;
-  --popover-foreground: #e7e3da;
+html[data-theme="dark"] {
+  --bg: #111316;
+  --band: #0b0d10;
+  --band-ink: #e3e6ea;
+  --band-line: rgba(255, 255, 255, 0.1);
+  --band-hover: rgba(255, 255, 255, 0.08);
+  --sheet: #181b1f;
+  --panel: #1d2025;
+  --ink: #e5e7ea;
+  --ink-2: #9aa2ad;
+  --line: #2c3138;
+  --line-2: #24282e;
+  --hl: #3e321b;
+  --hl-strong: #e0b25a;
+  --danger: #f08a80;
+  --code: #131619;
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 12px 32px -20px rgba(0, 0, 0, 0.7);
+
   --primary: var(--brand-d);
   --primary-foreground: var(--brand-d-fg);
-  --secondary: #353a41;
-  --secondary-foreground: #e7e3da;
-  --muted: #30343a;
-  --muted-foreground: #9c988e;
-  --accent: #373c43;
-  --accent-foreground: #e7e3da;
-  --destructive: #d06b5e;
-  --border: #3b4048;
-  --input: #444a52;
+  --secondary: #24282e;
+  --accent: #23272d;
+  --input: #363c44;
   --ring: var(--brand-d);
-  --ok: #8db896;
-  --down: #d77a6d;
+  --ok: #7cc49e;
+  --down: #f08a80;
+  --led-ok: #35e07a;
+  --led-down: #ff4338;
   --grid-line: color-mix(in oklab, var(--brand-d) 6%, transparent);
+  color-scheme: dark;
 }
 
 @theme inline {
-  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Bricolage Grotesque Variable", "Instrument Sans Variable", ui-sans-serif, sans-serif;
+  --font-sans: var(--sans);
+  --font-display: var(--sans);
+  --font-mono: var(--mono);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -86,30 +121,113 @@
   --color-ring: var(--ring);
   --color-ok: var(--ok);
   --color-down: var(--down);
-  --radius-sm: calc(var(--radius) - 6px);
-  --radius-md: calc(var(--radius) - 4px);
-  --radius-lg: calc(var(--radius) - 2px);
+  --color-band: var(--band);
+  --color-band-ink: var(--band-ink);
+  --color-band-line: var(--band-line);
+  --color-band-hover: var(--band-hover);
+  --color-band-accent: var(--band-accent);
+  --color-hl: var(--hl);
+  --color-hl-strong: var(--hl-strong);
+  --radius-sm: 0.45rem;
+  --radius-md: 0.55rem;
+  --radius-lg: 0.6rem;
   --radius-xl: var(--radius);
+  --shadow-sheet: var(--shadow);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  html {
-    color-scheme: light;
-  }
-  html.dark {
-    color-scheme: dark;
-  }
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-feature-settings: "ss01";
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--sans);
+    line-height: 1.55;
+    font-optical-sizing: auto;
+    font-feature-settings:
+      "cv05" 1,
+      "cv08" 1;
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.01em;
+  }
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--mono);
+  }
+  ::selection {
+    background: var(--hl);
+    color: var(--ink);
   }
   :focus-visible {
-    outline: 2px solid var(--ring);
+    outline: 3px solid var(--ring);
     outline-offset: 2px;
   }
+}
+
+@layer components {
+/* ---------- Header band: the Tidewiki band with faint contour lines ---------- */
+
+.band {
+  position: relative;
+  background: var(--band);
+  color: var(--band-ink);
+  overflow: hidden;
+  isolation: isolate;
+}
+.band::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10% -10% 35%;
+  z-index: -1;
+  opacity: 0.5;
+  pointer-events: none;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 300' fill='none' stroke='%23ffffff' stroke-opacity='.22' stroke-width='1'><path d='M60 150c20-80 140-120 240-100s220 20 250 90-60 130-170 140S40 250 60 150z'/><path d='M110 150c20-55 110-80 190-66s160 18 180 64-40 90-120 100S95 215 110 150z'/><path d='M160 148c18-34 80-52 138-42s112 16 124 46-26 60-84 66-190 12-178-70z'/><path d='M215 146c14-18 52-28 90-22s70 12 76 30-14 36-52 40-124 8-114-48z'/><path d='M262 144c10-9 32-13 52-9s34 9 36 18-8 18-30 20-62 4-58-29z'/></svg>")
+    center / cover no-repeat;
+}
+.band :focus-visible {
+  outline-color: rgba(255, 255, 255, 0.55);
+}
+/* Quiet buttons on the band, like Tidewiki's .icon-btn / .top-link. */
+.band-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 0;
+  background: transparent;
+  color: var(--band-ink);
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.55rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.band-btn:hover {
+  background: var(--band-hover);
+  color: #fff;
+}
+.band-btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+}
+.band-btn.outline {
+  border: 1px solid var(--band-line);
+}
+.band-btn.solid {
+  background: var(--band-accent);
+  color: var(--brand-d-fg);
+  font-weight: 600;
+}
+.band-btn.solid:hover {
+  background: color-mix(in oklab, var(--band-accent) 85%, white);
+  color: var(--brand-d-fg);
+}
 }
 
 /* ---------- Blocks ---------- */
@@ -117,6 +235,11 @@
 .block-surface {
   background: color-mix(in oklab, var(--card) calc(var(--card-alpha) * 100%), transparent);
   border: 1px solid color-mix(in oklab, var(--border) calc(40% + var(--card-alpha) * 60%), transparent);
+  box-shadow: var(--shadow);
+}
+/* The Tidewiki corner: one tight corner per card, same as its sidebar. */
+.tide-corners {
+  border-radius: 1rem 0.35rem 1rem 0.35rem;
 }
 .translucent .block-surface {
   backdrop-filter: blur(14px) saturate(1.1);
@@ -124,78 +247,207 @@
 
 /* ---------- Grid: view vs. edit ---------- */
 
-.react-grid-item {
-  transition-duration: 180ms;
+/*
+  The grid has no margins; each cell carries half a gap of padding on every
+  side. That keeps 14 px between blocks while the snap steps stay fine.
+*/
+.deck-grid .react-grid-item {
+  padding: calc(var(--gap) / 2);
 }
+/* Blocks that make way glide there instead of jumping, so it's easy to follow what moved. */
+.react-grid-item {
+  transition-duration: 280ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* The drop preview: drawn inside the padding, so it matches the block exactly. */
 .react-grid-item.react-grid-placeholder {
-  background: var(--primary);
-  opacity: 0.18;
-  border-radius: var(--radius);
+  background: none;
+  opacity: 1;
+  transition-duration: 160ms;
+}
+.react-grid-item.react-grid-placeholder::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--gap) / 2);
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  border: 2px dashed color-mix(in oklab, var(--primary) 80%, transparent);
+  border-radius: 1rem 0.35rem 1rem 0.35rem;
+}
+/*
+  Where the moving block meets another one: a lit bar in the gap between them,
+  along exactly the stretch they share.
+*/
+.contact-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+.contact {
+  position: absolute;
+  border-radius: 9999px;
+  /* Brighter than the blocks' edit outlines, so it reads as "these two meet here". */
+  background: color-mix(in oklab, var(--primary) 55%, white);
+  box-shadow:
+    0 0 0 2px var(--primary),
+    0 0 16px 3px color-mix(in oklab, var(--primary) 60%, transparent);
+  animation: contact-in 160ms ease-out;
+}
+/* Round caps mark where the shared stretch starts and ends. */
+.contact::before,
+.contact::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: inherit;
+  box-shadow: 0 0 0 2px var(--primary);
+}
+.contact-v {
+  width: 5px;
+  margin-left: -2.5px;
+}
+.contact-v::before,
+.contact-v::after {
+  left: -2.5px;
+}
+.contact-v::before { top: -5px; }
+.contact-v::after { bottom: -5px; }
+.contact-h {
+  height: 5px;
+  margin-top: -2.5px;
+}
+.contact-h::before,
+.contact-h::after {
+  top: -2.5px;
+}
+.contact-h::before { left: -5px; }
+.contact-h::after { right: -5px; }
+@keyframes contact-in {
+  from { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .react-grid-item { transition-duration: 0ms; }
+  .contact { animation: none; }
 }
 .react-grid-item.react-draggable-dragging {
   cursor: grabbing;
 }
-.react-grid-item > .react-resizable-handle::after {
-  border-color: var(--primary);
-}
+/*
+  Resize handles are thick pieces of the block's own outline: the corners
+  trace the block's corner curve (Tidewiki's 1rem / 0.35rem pair), the
+  edges are short bars sitting on the same line.
+*/
 .react-grid-item > .react-resizable-handle {
   opacity: 1;
   z-index: 20;
 }
-/* Edge handles: a short brass bar instead of the default rotated arrow. */
+.react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  border: 0 solid var(--primary);
+  border-radius: 0;
+  background: none;
+}
+/* Handles sit in the cell's corner; their visible part moves in by half a gap onto the block. */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-sw,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-ne,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-nw {
+  width: calc(22px + var(--gap) / 2);
+  height: calc(22px + var(--gap) / 2);
+}
+/* One shape for every corner; the library rotates the handle into place. */
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-sw::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-ne::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-nw::after {
+  right: calc(var(--gap) / 2);
+  bottom: calc(var(--gap) / 2);
+  left: auto;
+  top: auto;
+  width: 16px;
+  height: 16px;
+  border-right-width: 3px;
+  border-bottom-width: 3px;
+}
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-nw::after {
+  border-bottom-right-radius: 1rem;
+}
+.react-grid-item > .react-resizable-handle.react-resizable-handle-sw::after,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-ne::after {
+  border-bottom-right-radius: 0.35rem;
+}
 .react-grid-item > .react-resizable-handle.react-resizable-handle-e,
 .react-grid-item > .react-resizable-handle.react-resizable-handle-w,
 .react-grid-item > .react-resizable-handle.react-resizable-handle-n,
 .react-grid-item > .react-resizable-handle.react-resizable-handle-s {
   transform: none;
 }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-w {
+  width: calc(12px + var(--gap) / 2);
+}
+.react-grid-item > .react-resizable-handle.react-resizable-handle-n,
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s {
+  height: calc(12px + var(--gap) / 2);
+}
 .react-grid-item > .react-resizable-handle.react-resizable-handle-e::after,
 .react-grid-item > .react-resizable-handle.react-resizable-handle-w::after,
 .react-grid-item > .react-resizable-handle.react-resizable-handle-n::after,
 .react-grid-item > .react-resizable-handle.react-resizable-handle-s::after {
-  border: 0;
-  border-radius: 999px;
   background: var(--primary);
-  opacity: 0.75;
+  border-radius: 3px;
 }
 .react-grid-item > .react-resizable-handle.react-resizable-handle-e::after,
 .react-grid-item > .react-resizable-handle.react-resizable-handle-w::after {
-  width: 3px;
-  height: 22px;
-  top: -1px;
+  top: 50%;
   bottom: auto;
+  width: 3px;
+  height: 24px;
+  translate: 0 -50%;
 }
-.react-grid-item > .react-resizable-handle.react-resizable-handle-e::after { right: 4px; left: auto; }
-.react-grid-item > .react-resizable-handle.react-resizable-handle-w::after { left: 4px; right: auto; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-e::after { right: calc(var(--gap) / 2); left: auto; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-w::after { left: calc(var(--gap) / 2); right: auto; }
 .react-grid-item > .react-resizable-handle.react-resizable-handle-n::after,
 .react-grid-item > .react-resizable-handle.react-resizable-handle-s::after {
-  width: 22px;
-  height: 3px;
-  left: -1px;
+  left: 50%;
   right: auto;
-}
-.react-grid-item > .react-resizable-handle.react-resizable-handle-s::after { bottom: 4px; top: auto; }
-.react-grid-item > .react-resizable-handle.react-resizable-handle-n::after { top: 4px; bottom: auto; }
-
-/* Corner handles: larger grab area, drawn as a brass corner bracket. */
-.react-grid-item > .react-resizable-handle.react-resizable-handle-se,
-.react-grid-item > .react-resizable-handle.react-resizable-handle-sw,
-.react-grid-item > .react-resizable-handle.react-resizable-handle-ne,
-.react-grid-item > .react-resizable-handle.react-resizable-handle-nw {
   width: 24px;
-  height: 24px;
+  height: 3px;
+  translate: -50% 0;
 }
-.react-grid-item > .react-resizable-handle.react-resizable-handle-se::after,
-.react-grid-item > .react-resizable-handle.react-resizable-handle-sw::after,
-.react-grid-item > .react-resizable-handle.react-resizable-handle-ne::after,
-.react-grid-item > .react-resizable-handle.react-resizable-handle-nw::after {
-  width: 11px;
-  height: 11px;
-  right: 3px;
-  bottom: 3px;
-  border-right-width: 3px;
-  border-bottom-width: 3px;
-  border-radius: 0 0 4px 0;
+.react-grid-item > .react-resizable-handle.react-resizable-handle-n::after { top: calc(var(--gap) / 2); bottom: auto; }
+.react-grid-item > .react-resizable-handle.react-resizable-handle-s::after { bottom: calc(var(--gap) / 2); top: auto; }
+
+/*
+  Resizing: the block snaps to the grid cell under the mouse (the same spot the
+  placeholder marks) instead of stretching pixel by pixel, so block and preview
+  always match. The invisible grid item still follows the mouse.
+*/
+.react-grid-item.resizing > .snap-frame {
+  position: absolute;
+  left: var(--snap-x, 0);
+  top: var(--snap-y, 0);
+  width: var(--snap-w, 100%);
+  height: var(--snap-h, 100%);
+  transition:
+    left 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 120ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.react-grid-item.resizing > .react-resizable-handle {
+  opacity: 0;
+}
+.react-grid-item.react-grid-placeholder.placeholder-resizing {
+  opacity: 0;
+}
+/* Only positions animate; sizes change instantly so nothing jumps after a resize. */
+.react-grid-item.cssTransforms {
+  transition-property: transform;
 }
 
 /* Music: the library only shows when the block is tall enough. */
@@ -205,49 +457,125 @@
 .music-library {
   display: none;
 }
-@container music (min-height: 250px) {
+.music-more {
+  display: none;
+}
+/* Tall enough for the library: show it. Slightly too short: say so. */
+@container music (min-height: 14.375rem) {
   .music-library {
     display: flex;
+  }
+}
+@container music (min-height: 9.375rem) and (max-height: 14.37rem) {
+  .music-more {
+    display: block;
+  }
+}
+
+/*
+  The board as shown (components/dashboard/static-board.tsx): the editor's grid
+  in plain CSS, so it is rendered with the page. .board-box is the container.
+  Screen sizes use the editor's thresholds (width ÷ scale ≥ 1200 / 900 / 600 px,
+  i.e. ≥ 75 / 56.25 / 37.5 rem, since rem follows the dashboard size); column
+  width, rows and gaps are the editor's too. Each block carries its place for
+  every size (--x-lg, --y-lg, --w-lg, --h-lg …) and its content zoom (--z-lg …).
+*/
+.board-box {
+  container: board / inline-size;
+}
+.static-board {
+  --gap: 0.875rem;
+  --row-h: 0.5625rem;
+  --pad: 0px;
+  --bp: xs;
+  --base: 8;
+  --cols: var(--cols-xs, 8);
+  --rows: var(--rows-xs, 0);
+  --col-w: max(1.25rem, calc((100cqw + var(--gap)) / var(--base)));
+  width: calc(var(--cols) * var(--col-w) - var(--gap));
+}
+.static-board[data-empty] {
+  width: 100%;
+}
+/* Touch screens: a board wider than the screen (grown sideways on a desktop) scrolls
+   sideways within itself instead of widening the page, which makes mobile browsers
+   zoom the whole page out. The padding keeps the blocks' shadows from being cut off. */
+@media (pointer: coarse) {
+  .board-box:has(> div > .static-board) {
+    width: calc(100% + 2rem);
+    margin: -1rem;
+    padding: 1rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+}
+/* Absolute positions (one rounding each), not grid tracks: tracks of 10.8 px and the
+   like add up their rounding over many rows; the editor's grid doesn't. */
+.static-grid {
+  position: relative;
+  width: calc(var(--cols) * var(--col-w));
+  height: calc(var(--rows) * var(--row-h));
+  margin: calc(var(--gap) / -2);
+}
+.static-item {
+  --x: var(--x-xs);
+  --y: var(--y-xs);
+  --w: var(--w-xs);
+  --h: var(--h-xs);
+  --bz: var(--z-xs, 1);
+  position: absolute;
+  left: calc(var(--x) * var(--col-w));
+  top: calc(var(--y) * var(--row-h));
+  width: calc(var(--w) * var(--col-w));
+  height: calc(var(--h) * var(--row-h));
+  padding: calc(var(--gap) / 2);
+}
+@container board (min-width: 37.5rem) {
+  .static-board { --bp: sm; --base: 16; --cols: var(--cols-sm, 16); --rows: var(--rows-sm, 0); }
+  .static-item { --x: var(--x-sm); --y: var(--y-sm); --w: var(--w-sm); --h: var(--h-sm); --bz: var(--z-sm, 1); }
+}
+@container board (min-width: 56.25rem) {
+  .static-board { --bp: md; --base: 32; --cols: var(--cols-md, 32); --rows: var(--rows-md, 0); }
+  .static-item { --x: var(--x-md); --y: var(--y-md); --w: var(--w-md); --h: var(--h-md); --bz: var(--z-md, 1); }
+}
+@container board (min-width: 75rem) {
+  .static-board { --bp: lg; --base: 48; --cols: var(--cols-lg, 48); --rows: var(--rows-lg, 0); }
+  .static-item { --x: var(--x-lg); --y: var(--y-lg); --w: var(--w-lg); --h: var(--h-lg); --bz: var(--z-lg, 1); }
+}
+
+/* Keyboard hints: the system's monospace font, so a "/" hint doesn't download a whole web font. */
+@layer utilities {
+  .font-kbd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   }
 }
 
 /* The chart table: column guides appear only while editing. */
 .deck-grid {
-  border-radius: calc(var(--radius) + 4px);
   transition: background-color 200ms ease, box-shadow 200ms ease;
 }
 .deck-grid[data-editing="true"] {
+  /* Faint stripes every four columns, and a dot every two columns and three rows,
+     in the middle of the gap where block edges meet (snapping is finer than the dots). */
   background-image:
     repeating-linear-gradient(
       to right,
-      var(--grid-line) 0 var(--col-w),
-      transparent var(--col-w) calc(var(--col-w) + var(--gap))
+      var(--grid-line) 0 calc(var(--col-w) * 4 - var(--gap)),
+      transparent calc(var(--col-w) * 4 - var(--gap)) calc(var(--col-w) * 8)
     ),
-    radial-gradient(circle, color-mix(in oklab, var(--primary) 30%, transparent) 1px, transparent 1.5px);
+    radial-gradient(circle, color-mix(in oklab, var(--primary) 26%, transparent) 1px, transparent 1.4px);
   background-size:
     100% 100%,
-    calc(var(--col-w) + var(--gap)) calc(var(--row-h) + var(--gap));
+    calc(var(--col-w) * 2) calc(var(--row-h) * 3);
   background-position:
-    var(--pad) 0,
-    calc(var(--pad) - var(--gap) / 2) calc(var(--pad) - var(--gap) / 2);
-  background-clip: content-box;
+    0 0,
+    calc(var(--col-w) - var(--gap) / 2) calc(var(--row-h) * 1.5 - var(--gap) / 2);
   box-shadow: inset 0 0 0 1px var(--grid-line);
 }
 
-/* Brass corner marks on blocks while editing. */
-.corner-marks {
-  --c: var(--primary);
-  --l: 16px;
-  --t: 2px;
-  background:
-    linear-gradient(var(--c), var(--c)) top left / var(--l) var(--t) no-repeat,
-    linear-gradient(var(--c), var(--c)) top left / var(--t) var(--l) no-repeat,
-    linear-gradient(var(--c), var(--c)) top right / var(--l) var(--t) no-repeat,
-    linear-gradient(var(--c), var(--c)) top right / var(--t) var(--l) no-repeat,
-    linear-gradient(var(--c), var(--c)) bottom left / var(--l) var(--t) no-repeat,
-    linear-gradient(var(--c), var(--c)) bottom left / var(--t) var(--l) no-repeat,
-    linear-gradient(var(--c), var(--c)) bottom right / var(--l) var(--t) no-repeat,
-    linear-gradient(var(--c), var(--c)) bottom right / var(--t) var(--l) no-repeat;
+/* While editing, each block gets a thin outline in the accent colour. */
+.edit-outline {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 55%, transparent);
 }
 
 /* ---------- Markdown notes ---------- */
@@ -262,9 +590,9 @@
 .prose-notes h1,
 .prose-notes h2,
 .prose-notes h3 {
-  font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 650;
   line-height: 1.25;
+  letter-spacing: -0.01em;
 }
 .prose-notes h1 { font-size: 1.35rem; }
 .prose-notes h2 { font-size: 1.15rem; }
@@ -273,10 +601,11 @@
 .prose-notes ol { list-style: decimal; padding-left: 1.25rem; }
 .prose-notes li + li { margin-top: 0.2em; }
 .prose-notes a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
-.prose-notes code { background: var(--muted); padding: 0.1em 0.35em; border-radius: 5px; font-size: 0.85em; }
-.prose-notes pre { background: var(--muted); padding: 0.75rem; border-radius: 8px; overflow-x: auto; }
+.prose-notes code { background: var(--code); border: 1px solid var(--line-2); padding: 0.05em 0.35em; border-radius: 5px; font-size: 0.85em; }
+.prose-notes pre { background: var(--code); border: 1px solid var(--line-2); padding: 0.75rem; border-radius: 0.55rem; overflow-x: auto; }
+.prose-notes pre code { border: 0; }
 .prose-notes pre code { background: none; padding: 0; }
-.prose-notes blockquote { border-left: 3px solid var(--primary); padding-left: 0.75rem; color: var(--muted-foreground); }
+.prose-notes blockquote { border-left: 3px solid var(--hl-strong); padding-left: 0.75rem; color: var(--muted-foreground); }
 .prose-notes table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
 .prose-notes th, .prose-notes td { border: 1px solid var(--border); padding: 0.3rem 0.5rem; text-align: left; }
 .prose-notes hr { border-color: var(--border); }
@@ -287,4 +616,112 @@
   .deck-grid {
     transition: none !important;
   }
+}
+
+/*
+  Dialogs and menus: single-column grids get minmax(0, 1fr) instead of an auto
+  column, so long names or URLs truncate instead of pushing the dialog wider
+  than the screen.
+*/
+[role="dialog"].grid:not([class*="grid-cols"]),
+[role="dialog"] .grid:not([class*="grid-cols"]) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/*
+  Page column: centred in the window (not in the page), so a board that is
+  wider than the window doesn't shift everything as the page grows sideways.
+  --vw is the window width without scrollbar, set by the dashboard.
+*/
+.page-col {
+  width: min(var(--page-max, 105rem), var(--vw, 100vw));
+  margin-left: max(0px, calc((var(--vw, 100vw) - var(--page-max, 105rem)) / 2));
+  margin-right: auto;
+}
+
+/* Kiosk: the pointer disappears after a few idle seconds. */
+html.kiosk-idle,
+html.kiosk-idle * {
+  cursor: none !important;
+}
+
+/* Clock: in a short block the extras give way, time first, then date, then other zones, then the greeting. */
+.clock-root {
+  container-type: size;
+}
+@container (max-height: 10rem) {
+  .clock-greeting {
+    display: none;
+  }
+}
+@container (max-height: 7.5rem) {
+  .clock-zones {
+    display: none;
+  }
+}
+@container (max-height: 4rem) {
+  .clock-date {
+    display: none;
+  }
+}
+
+/* The page's side margin, the same as <main>'s px-4 / sm:px-6 / lg:px-10; the page only grows
+   wider than the window when the board itself does (a fixed 2.5rem made phones 24 px too wide). */
+:root {
+  --page-pad: 1rem;
+}
+@media (min-width: 40rem) {
+  :root {
+    --page-pad: 1.5rem;
+  }
+}
+@media (min-width: 64rem) {
+  :root {
+    --page-pad: 2.5rem;
+  }
+}
+
+/*
+  Status lights on app tiles. Online and offline are lit (a bright core with a
+  glow in its own colour), offline also pulses; "still checking" or "unknown"
+  is an unlit ring, so it differs by shape, not just colour.
+*/
+@layer components {
+.led {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 9999px;
+}
+.led-wait {
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--muted-foreground) 70%, transparent);
+}
+.led-ok,
+.led-down {
+  --led: var(--led-ok);
+  background: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--led) 45%, white) 0 18%, var(--led) 55%);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--led) 70%, black),
+    0 0 7px 1px color-mix(in oklab, var(--led) 65%, transparent);
+}
+.led-down {
+  --led: var(--led-down);
+}
+.led-down::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--led) 70%, transparent);
+  animation: led-pulse 1.8s ease-out infinite;
+}
+}
+@keyframes led-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--led) 70%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 7px color-mix(in oklab, var(--led) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .led-down::after { animation: none; }
 }

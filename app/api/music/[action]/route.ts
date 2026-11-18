@@ -89,10 +89,20 @@ export async function GET(req: NextRequest, { params }: Ctx) {
           { headers: range ? { range } : {}, signal: req.signal },
         )
         if (!upstream.ok && upstream.status !== 206) return fail(502, `Server answered HTTP ${upstream.status}`)
-        const type = upstream.headers.get("content-type") ?? ""
-        if (type.includes("json") || type.includes("xml")) return fail(502, "Server refused to stream this track")
-        const headers = new Headers({ "cache-control": "private, no-store" })
-        for (const h of ["content-type", "content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
+        const type = (upstream.headers.get("content-type") ?? "").toLowerCase()
+        if (type.includes("json") || type.includes("xml")) {
+          await upstream.body?.cancel().catch(() => {})
+          return fail(502, "Server refused to stream this track")
+        }
+        // Only audio leaves this endpoint: anything else (an HTML error page, say)
+        // is labelled as plain bytes, so a browser never renders it on this origin.
+        const audio = /^(audio\/[\w.+-]+|application\/ogg|application\/octet-stream)\b/.test(type)
+        const headers = new Headers({
+          "cache-control": "private, no-store",
+          "content-type": audio ? type : "application/octet-stream",
+          "x-content-type-options": "nosniff",
+        })
+        for (const h of ["content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
           const v = upstream.headers.get(h)
           if (v) headers.set(h, v)
         }
@@ -105,10 +115,14 @@ export async function GET(req: NextRequest, { params }: Ctx) {
         const upstream = await fetchRaw(account, endpointUrl(account, "getCoverArt", { id, size }), {
           signal: AbortSignal.timeout(15_000),
         })
-        const type = upstream.headers.get("content-type") ?? ""
-        if (!upstream.ok || !type.startsWith("image/")) return fail(404, "No cover")
+        const type = (upstream.headers.get("content-type") ?? "").toLowerCase()
+        // Raster images only: an SVG can carry script.
+        if (!upstream.ok || !/^image\/(jpeg|png|gif|webp|avif|bmp)\b/.test(type)) {
+          await upstream.body?.cancel().catch(() => {})
+          return fail(404, "No cover")
+        }
         return new Response(upstream.body as unknown as BodyInit, {
-          headers: { "content-type": type, "cache-control": "private, max-age=86400" },
+          headers: { "content-type": type, "cache-control": "private, max-age=86400", "x-content-type-options": "nosniff" },
         })
       }
       default:

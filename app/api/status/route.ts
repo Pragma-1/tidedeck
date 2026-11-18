@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server"
 import { collectApps } from "@/lib/schema"
-import { canView } from "@/lib/server/auth"
+import { canEdit, canView } from "@/lib/server/auth"
 import { fail, json } from "@/lib/server/http"
 import { checkApp } from "@/lib/server/status"
 import { getConfig } from "@/lib/server/store"
@@ -14,6 +14,13 @@ export async function GET(req: NextRequest) {
   const ids = new Set((req.nextUrl.searchParams.get("ids") ?? "").split(",").filter(Boolean).slice(0, 300))
   const { config } = await getConfig()
   const apps = collectApps(config).filter((a) => ids.has(a.id) && a.statusCheck)
-  const entries = await Promise.all(apps.map(async (a) => [a.id, await checkApp(a)] as const))
+  // Network error details (host names, internal errors) are for the admin; visitors see up/down.
+  const admin = await canEdit(req)
+  const entries = await Promise.all(
+    apps.map(async (a) => {
+      const r = await checkApp(a)
+      return [a.id, admin ? r : { ok: r.ok, code: r.code, ms: r.ms, checkedAt: r.checkedAt }] as const
+    }),
+  )
   return json(Object.fromEntries(entries))
 }

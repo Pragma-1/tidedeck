@@ -15,9 +15,14 @@ import { AppIcon } from "@/components/widgets/app-tile"
 import { ENGINE_NAMES } from "@/components/widgets/search-widget"
 import { flushSave, useDashboard } from "@/hooks/use-dashboard"
 import { embedUrl } from "@/lib/music-embed"
-import { findBlock, type App, type Block, type BlockOf } from "@/lib/schema"
+import { findBlock } from "@/lib/model"
+import type { App, Block, BlockOf, BreakpointKey } from "@/lib/schema"
+import { setBlockZoom } from "@/lib/board-ops"
+import { ZOOM_MAX, ZOOM_MIN } from "@/lib/display"
+import { Slider } from "@/components/ui/slider"
 import { cn, isSafeHref } from "@/lib/utils"
 import { metaFor, newApp } from "@/lib/widget-meta"
+import { SOURCE_INFO, WEATHER_KEYS_EVENT, WEATHER_SOURCES, type KeyedSource } from "@/lib/weather"
 
 type Setter<B extends Block> = (fn: (b: B) => void) => void
 
@@ -34,7 +39,13 @@ export function BlockSettingsDialog() {
   return (
     <Dialog open={!!block} onOpenChange={(o) => !o && close(null)}>
       {block && meta && (
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent
+          className="sm:max-w-xl"
+          onOpenAutoFocus={(e) => {
+            e.preventDefault()
+            ;(e.currentTarget as HTMLElement).focus()
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <meta.icon className="size-5 text-primary" aria-hidden />
@@ -53,6 +64,7 @@ export function BlockSettingsDialog() {
               </div>
             )}
             <Body block={block} set={set} />
+            <ZoomField block={block} set={set} />
           </div>
 
           <DialogFooter>
@@ -61,6 +73,36 @@ export function BlockSettingsDialog() {
         </DialogContent>
       )}
     </Dialog>
+  )
+}
+
+const SCREEN_NAMES: Record<BreakpointKey, string> = { lg: "large screens", md: "medium screens", sm: "small screens", xs: "phones" }
+
+/** Content zoom for the screen size the board is shown at right now. */
+function ZoomField({ block, set }: { block: Block; set: Setter<Block> }) {
+  const bp = useDashboard((s) => s.breakpoint)
+  const pct = Math.round((block.zoom[bp] ?? 1) * 100)
+  return (
+    <Field
+      label={`Content zoom ${pct}%`}
+      hint={`Applies on ${SCREEN_NAMES[bp]}, like the layout. With a mouse or trackpad: Ctrl + scroll or pinch over the block in edit mode.`}
+    >
+      {() => (
+        <div className="flex items-center gap-3">
+          <Slider
+            aria-label="Content zoom"
+            min={ZOOM_MIN * 100}
+            max={ZOOM_MAX * 100}
+            step={5}
+            value={[pct]}
+            onValueChange={([v]) => set((b) => setBlockZoom(b, bp, v / 100))}
+          />
+          <Button variant="ghost" size="sm" disabled={pct === 100} onClick={() => set((b) => setBlockZoom(b, bp, 1))}>
+            Reset
+          </Button>
+        </div>
+      )}
+    </Field>
   )
 }
 
@@ -119,6 +161,19 @@ function Body({ block, set }: { block: Block; set: Setter<Block> }) {
       )
     case "music":
       return <MusicSettings block={block} set={set as Setter<BlockOf<"music">>} />
+    case "checklist":
+      return (
+        <div className="grid gap-3.5">
+          <ToggleRow
+            label="Done items move to the bottom"
+            checked={block.props.doneLast}
+            onCheckedChange={(v) => set((b) => b.type === "checklist" && void (b.props.doneLast = v))}
+          />
+          <p className="text-sm text-muted-foreground">
+            Add, tick and remove items right on the dashboard while signed in (outside edit mode). Visitors see the list but can&apos;t change it.
+          </p>
+        </div>
+      )
     case "calendar":
       return (
         <Field label="Week starts on">
@@ -163,7 +218,14 @@ function AppFields({ app, onChange }: { app: App; onChange: (fn: (a: App) => voi
         )}
       </Field>
       <IconPicker value={app.icon} appUrl={app.url} appName={app.name} onChange={(v) => onChange((a) => void (a.icon = v))} />
-      <Field label="Open in">
+      <Field
+        label="Open in"
+        hint={
+          app.target === "overlay"
+            ? "Shows the app in a panel on top of the dashboard. Some apps refuse to be shown inside other pages; use a tab for those."
+            : "Right-click an app for the other ways to open it; Alt+click opens it on top of the dashboard."
+        }
+      >
         {(id) => (
           <Select value={app.target} onValueChange={(v) => onChange((a) => void (a.target = v as App["target"]))}>
             <SelectTrigger id={id}>
@@ -172,6 +234,7 @@ function AppFields({ app, onChange }: { app: App; onChange: (fn: (a: App) => voi
             <SelectContent>
               <SelectItem value="new">New tab</SelectItem>
               <SelectItem value="same">Same tab</SelectItem>
+              <SelectItem value="overlay">On top of the dashboard</SelectItem>
             </SelectContent>
           </Select>
         )}
@@ -226,13 +289,14 @@ function AppsSettings({ block, set }: { block: BlockOf<"apps">; set: Setter<Bloc
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Layout">
           {(id) => (
-            <Select value={block.props.display} onValueChange={(v) => set((b) => void (b.props.display = v as "grid" | "list"))}>
+            <Select value={block.props.display} onValueChange={(v) => set((b) => void (b.props.display = v as typeof b.props.display))}>
               <SelectTrigger id={id}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="grid">Tiles</SelectItem>
                 <SelectItem value="list">List</SelectItem>
+                <SelectItem value="compact">Compact (bookmarks)</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -426,17 +490,71 @@ function ClockSettings({ block, set }: { block: BlockOf<"clock">; set: Setter<Bl
       <ToggleRow label="12-hour clock" checked={p.hour12} onCheckedChange={(v) => set((b) => void (b.props.hour12 = v))} />
       <ToggleRow label="Show seconds" checked={p.showSeconds} onCheckedChange={(v) => set((b) => void (b.props.showSeconds = v))} />
       <ToggleRow label="Show date" checked={p.showDate} onCheckedChange={(v) => set((b) => void (b.props.showDate = v))} />
+      <ToggleRow
+        label="Greeting"
+        description="“Good morning” above the time, changing through the day."
+        checked={p.greeting}
+        onCheckedChange={(v) => set((b) => void (b.props.greeting = v))}
+      />
+      {p.greeting && (
+        <Field label="Name in the greeting" hint="Optional.">
+          {(id) => <Input id={id} value={p.greetingName} maxLength={40} placeholder="Alex" onChange={(e) => set((b) => void (b.props.greetingName = e.target.value))} />}
+        </Field>
+      )}
+      <div className="grid gap-2">
+        <span className="text-sm font-medium">More time zones</span>
+        {p.zones.map((z, i) => {
+          const bad = z.timezone && zones.length > 0 && !zones.includes(z.timezone)
+          return (
+            <div key={i} className="flex items-start gap-2">
+              <Input
+                aria-label="Label"
+                className="w-32 shrink-0"
+                value={z.label}
+                maxLength={40}
+                placeholder={z.timezone.split("/").pop()?.replace(/_/g, " ") || "Label"}
+                onChange={(e) => set((b) => void (b.props.zones[i].label = e.target.value))}
+              />
+              <div className="min-w-0 flex-1">
+                <Input
+                  aria-label="Time zone"
+                  aria-invalid={bad || undefined}
+                  list="tz-list"
+                  value={z.timezone}
+                  placeholder="America/New_York"
+                  onChange={(e) => set((b) => void (b.props.zones[i].timezone = e.target.value))}
+                />
+                {bad && <p className="mt-1 text-xs text-destructive">Unknown time zone</p>}
+              </div>
+              <Button variant="ghost" size="icon" aria-label="Remove time zone" onClick={() => set((b) => void b.props.zones.splice(i, 1))}>
+                <Trash2 />
+              </Button>
+            </div>
+          )
+        })}
+        <datalist id="tz-list">
+          {zones.map((z) => (
+            <option key={z} value={z} />
+          ))}
+        </datalist>
+        {p.zones.length < 8 && (
+          <Button variant="outline" size="sm" className="w-fit" onClick={() => set((b) => void b.props.zones.push({ label: "", timezone: "" }))}>
+            <Plus /> Add time zone
+          </Button>
+        )}
+      </div>
     </div>
   )
 }
 
-type GeoResult = { id: number; name: string; country?: string; admin1?: string; latitude: number; longitude: number }
+type GeoResult = { id: number; name: string; country?: string; admin1?: string; latitude: number; longitude: number; timezone?: string }
 
 function WeatherSettings({ block, set }: { block: BlockOf<"weather">; set: Setter<BlockOf<"weather">> }) {
   const p = block.props
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<GeoResult[] | null>(null)
   const [busy, setBusy] = useState(false)
+  const info = SOURCE_INFO[p.source]
 
   useEffect(() => setResults(null), [p.latitude, p.longitude])
 
@@ -482,9 +600,10 @@ function WeatherSettings({ block, set }: { block: BlockOf<"weather">; set: Sette
                 className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent"
                 onClick={() =>
                   set((b) => {
-                    b.props.place = r.name
+                    b.props.place = r.name.slice(0, 120)
                     b.props.latitude = r.latitude
                     b.props.longitude = r.longitude
+                    b.props.timezone = typeof r.timezone === "string" && /^[A-Za-z0-9_+\-/]{1,64}$/.test(r.timezone) ? r.timezone : ""
                   })
                 }
               >
@@ -495,6 +614,24 @@ function WeatherSettings({ block, set }: { block: BlockOf<"weather">; set: Sette
           ))}
         </ul>
       )}
+      <Field label="Weather source" hint={info.hint}>
+        {(id) => (
+          <Select value={p.source} onValueChange={(v) => set((b) => void (b.props.source = v as typeof p.source))}>
+            <SelectTrigger id={id}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {WEATHER_SOURCES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {SOURCE_INFO[s].name}
+                  {SOURCE_INFO[s].keyed ? "" : " (no key needed)"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </Field>
+      {info.keyed && <WeatherKeyForm key={info.keyed} source={info.keyed} blockId={block.id} />}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Units">
           {(id) => (
@@ -509,7 +646,7 @@ function WeatherSettings({ block, set }: { block: BlockOf<"weather">; set: Sette
             </Select>
           )}
         </Field>
-        <Field label="Forecast days">
+        <Field label="Forecast days" hint={p.forecastDays > info.maxDays ? `${info.name} forecasts ${info.maxDays} days at most.` : undefined}>
           {(id) => (
             <Select value={String(p.forecastDays)} onValueChange={(v) => set((b) => void (b.props.forecastDays = Number(v)))}>
               <SelectTrigger id={id}>
@@ -527,6 +664,141 @@ function WeatherSettings({ block, set }: { block: BlockOf<"weather">; set: Sette
         </Field>
       </div>
     </div>
+  )
+}
+
+type KeyStatus = { openweathermap: boolean; weatherapi: boolean; google: boolean; apple: { teamId: string; serviceId: string; keyId: string } | null }
+
+/** The key of a weather source: saved once on the server, for every weather block. */
+function WeatherKeyForm({ source, blockId }: { source: KeyedSource; blockId: string }) {
+  const info = SOURCE_INFO[source]
+  const [status, setStatus] = useState<KeyStatus | null>(null)
+  const [apiKey, setApiKey] = useState("")
+  const [teamId, setTeamId] = useState("")
+  const [keyId, setKeyId] = useState("")
+  const [serviceId, setServiceId] = useState("")
+  const [privateKey, setPrivateKey] = useState("")
+  const [state, setState] = useState<{ busy: boolean; ok?: string; error?: string }>({ busy: false })
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const res = await fetch("/api/weather/keys", { cache: "no-store" }).catch(() => null)
+      if (!res?.ok || cancelled) return
+      const s = (await res.json()) as KeyStatus
+      setStatus(s)
+      if (s.apple) {
+        setTeamId(s.apple.teamId)
+        setKeyId(s.apple.keyId)
+        setServiceId(s.apple.serviceId)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const saved = source === "apple" ? !!status?.apple : !!status?.[source]
+
+  const send = async (payload: Record<string, unknown>, done: string) => {
+    setState({ busy: true })
+    // The key is tried where the block is: save its place first.
+    await flushSave()
+    const res = await fetch("/api/weather/keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ source, block: blockId, ...payload }),
+    }).catch(() => null)
+    const body = (await res?.json().catch(() => ({}))) ?? {}
+    if (res?.ok) {
+      setState({ busy: false, ok: done })
+      setApiKey("")
+      setPrivateKey("")
+      const removed = payload.remove === true
+      setStatus((s) => {
+        const next = { ...(s ?? { openweathermap: false, weatherapi: false, google: false, apple: null }) }
+        if (source === "apple") next.apple = removed ? null : { teamId: teamId.trim().toUpperCase(), keyId: keyId.trim().toUpperCase(), serviceId: serviceId.trim() }
+        else next[source] = !removed
+        return next
+      })
+      window.dispatchEvent(new Event(WEATHER_KEYS_EVENT))
+    } else setState({ busy: false, error: body.error ?? (res ? `Server answered ${res.status}` : "Can't reach the Tidedeck server.") })
+  }
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    void send(source === "apple" ? { teamId, keyId, serviceId, privateKey } : { apiKey }, "The key works and is saved.")
+  }
+  const keep = saved ? "Saved. Leave empty to keep it" : ""
+  const ready = source === "apple" ? !!(teamId && keyId && serviceId && (privateKey || saved)) : !!apiKey
+
+  return (
+    <form onSubmit={submit} className="grid gap-3 rounded-lg border p-3.5">
+      {source === "apple" ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Team ID">
+              {(id) => <Input id={id} autoComplete="off" spellCheck={false} value={teamId} placeholder="ABCDE12345" onChange={(e) => setTeamId(e.target.value)} />}
+            </Field>
+            <Field label="Key ID">
+              {(id) => <Input id={id} autoComplete="off" spellCheck={false} value={keyId} placeholder="FGHIJ67890" onChange={(e) => setKeyId(e.target.value)} />}
+            </Field>
+          </div>
+          <Field label="Services ID">
+            {(id) => (
+              <Input id={id} autoComplete="off" spellCheck={false} value={serviceId} placeholder="com.example.weather" onChange={(e) => setServiceId(e.target.value)} />
+            )}
+          </Field>
+          <Field label="Private key (.p8)">
+            {(id) => (
+              <Textarea
+                id={id}
+                rows={4}
+                autoComplete="off"
+                spellCheck={false}
+                className="font-kbd text-xs"
+                value={privateKey}
+                placeholder={keep || "-----BEGIN PRIVATE KEY-----"}
+                onChange={(e) => setPrivateKey(e.target.value)}
+              />
+            )}
+          </Field>
+        </>
+      ) : (
+        <Field label={`${info.name} API key`}>
+          {(id) => (
+            <Input id={id} type="password" autoComplete="off" spellCheck={false} value={apiKey} placeholder={keep} onChange={(e) => setApiKey(e.target.value)} />
+          )}
+        </Field>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Saved encrypted on the Tidedeck server, once for all weather blocks, and never sent to browsers. The server loads the weather and shares it with
+        every viewer, at most every 10 minutes per block.{" "}
+        {info.signup && (
+          <a href={info.signup} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+            Get a key
+          </a>
+        )}
+      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" variant="secondary" disabled={state.busy || !ready}>
+          {state.busy && <Loader2 className="animate-spin" />}
+          Save and test
+        </Button>
+        {saved && (
+          <Button type="button" variant="ghost" disabled={state.busy} onClick={() => void send({ remove: true }, "The key was removed.")}>
+            Remove key
+          </Button>
+        )}
+        {state.ok && (
+          <span className="flex items-center gap-1.5 text-sm text-ok">
+            <CheckCircle2 className="size-4" /> {state.ok}
+          </span>
+        )}
+        {state.error && <span className="text-sm text-destructive">{state.error}</span>}
+        {!state.ok && !state.error && saved && <span className="text-xs text-muted-foreground">A key is saved.</span>}
+      </div>
+    </form>
   )
 }
 
@@ -579,8 +851,65 @@ function RssSettings({ block, set }: { block: BlockOf<"rss">; set: Setter<BlockO
           />
         )}
       </Field>
+      <FeedHelper
+        onAdd={(url) => {
+          const next = [...lines.filter((l) => l !== url), url].slice(0, 20)
+          setText(next.join("\n"))
+          if (next.every((l) => /^https?:\/\//i.test(l))) set((b) => void (b.props.feeds = next))
+        }}
+      />
       <ToggleRow label="Show feed name" checked={p.showSource} onCheckedChange={(v) => set((b) => void (b.props.showSource = v))} />
     </div>
+  )
+}
+
+/** Feed addresses people look up every time: GitHub releases, YouTube channels, subreddits. */
+const FEED_KINDS = {
+  github: { label: "GitHub releases", placeholder: "owner/repo", make: (v: string) => /^[\w.-]+\/[\w.-]+$/.test(v) ? `https://github.com/${v}/releases.atom` : null },
+  youtube: {
+    label: "YouTube channel",
+    placeholder: "Channel ID (UC…)",
+    make: (v: string) => (/^UC[\w-]{20,24}$/.test(v) ? `https://www.youtube.com/feeds/videos.xml?channel_id=${v}` : null),
+  },
+  reddit: { label: "Subreddit", placeholder: "selfhosted", make: (v: string) => (/^[\w]{2,21}$/.test(v.replace(/^r\//, "")) ? `https://www.reddit.com/r/${v.replace(/^r\//, "")}/.rss` : null) },
+} as const
+
+function FeedHelper({ onAdd }: { onAdd: (url: string) => void }) {
+  const [kind, setKind] = useState<keyof typeof FEED_KINDS>("github")
+  const [value, setValue] = useState("")
+  const url = FEED_KINDS[kind].make(value.trim())
+  return (
+    <Field label="Add a feed by name" hint={url ? url : "Fills in the feed address for you."}>
+      {(id) => (
+        <form
+          className="flex flex-wrap gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (url) {
+              onAdd(url)
+              setValue("")
+            }
+          }}
+        >
+          <Select value={kind} onValueChange={(v) => setKind(v as keyof typeof FEED_KINDS)}>
+            <SelectTrigger className="w-40" aria-label="Kind of feed">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(FEED_KINDS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>
+                  {v.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input id={id} className="min-w-0 flex-1" value={value} placeholder={FEED_KINDS[kind].placeholder} onChange={(e) => setValue(e.target.value)} />
+          <Button type="submit" variant="secondary" disabled={!url}>
+            Add
+          </Button>
+        </form>
+      )}
+    </Field>
   )
 }
 

@@ -1,19 +1,26 @@
 {
   "name": "tidedeck",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "check": "tsc --noEmit",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
-    "@fontsource-variable/instrument-sans": "^5.3.0",
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+    "@fontsource-variable/ibm-plex-sans": "^5.3.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/nunito": "^5.3.0",
+    "@fontsource-variable/source-serif-4": "^5.3.1",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fast-xml-parser": "^5.12.0",
@@ -29,6 +36,7 @@
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "undici": "^8.12.4",
+    "yaml": "^2.9.1",
     "zod": "^4.6.7",
     "zustand": "^5.1.0"
   },
@@ -40,5 +48,6 @@
     "tailwindcss": "^4.3.5",
     "tw-animate-css": "^1.4.0",
     "typescript": "^5"
-  }
+  },
+  "license": "MIT"
 }

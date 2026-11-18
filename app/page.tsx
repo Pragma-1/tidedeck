@@ -4,6 +4,8 @@ import { Locked } from "@/components/dashboard/locked"
 import { SESSION_COOKIE, getAuthState } from "@/lib/server/auth"
 import { pruneSecrets } from "@/lib/server/secrets"
 import { getConfig } from "@/lib/server/store"
+import { LOCALE_COOKIE, parseLocaleCookie } from "@/lib/locale-context"
+import { buildId } from "@/lib/server/build"
 
 export const dynamic = "force-dynamic"
 
@@ -16,5 +18,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ b
   if (config.settings.requireLoginToView && !auth.authenticated) {
     return <Locked title={config.settings.title} />
   }
-  return <Dashboard config={config} rev={rev} auth={auth} boardId={params.board} />
+  const locale = parseLocaleCookie(cookieStore.get(LOCALE_COOKIE)?.value)
+  return <Dashboard config={config} rev={rev} auth={auth} boardId={params.board} locale={locale} build={buildId()} />
 }
