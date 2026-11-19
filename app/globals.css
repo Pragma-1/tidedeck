@@ -241,7 +241,23 @@ html[data-theme="dark"] {
 .tide-corners {
   border-radius: 1rem 0.35rem 1rem 0.35rem;
 }
+/*
+  Frosted blocks. The blur sits on an empty layer behind the block's content, not
+  on the block itself: Chrome sometimes drew a blurred copy of a block's own title
+  into the frosted glass (a "ghost" above the title) when the blurring element had
+  content of its own. An empty layer has nothing of the block to pick up.
+*/
 .translucent .block-surface {
+  position: relative;
+  z-index: 0;
+}
+.translucent .block-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
   backdrop-filter: blur(14px) saturate(1.1);
 }
 

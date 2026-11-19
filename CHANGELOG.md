@@ -8,6 +8,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - The background is built from layers instead of one of four choices: a base (theme grey or your own colour, which also tints blocks and lines), an image over it (blurred, and darkened towards the base colour) and a gradient on top. Image and gradient switch on and off independently and keep their settings while off, so nothing is lost by trying something else. Existing settings are converted. Presets set the base and gradient (Synthwave, Coral reef, Sunset and Deep sea now combine both) and leave your image alone.
 
+### Fixed
+
+- With block opacity below 100 %, Chrome could show a blurred copy of a block's title just above it. The frosted blur is now drawn by an empty layer behind the block's content, so the block's own text can't end up in it.
+
 ## [1.2.0] — 2026-11-19
 
 ### Added
