@@ -1,9 +1,11 @@
 node_modules
 .next
 data
-.env
+tests
 .git
+.env
 *.md
-!README.md
 docs
 .github
+coverage
+*.log

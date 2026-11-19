@@ -1,0 +1,100 @@
+# Tidewiki — put this file and your .env (copy of .env.example) in the same folder, then:
+#   docker compose -f docker.yaml up -d
+# Needs Docker Compose 2.23 or newer (for the inline database init script under "configs").
+# Image: astaldoo/tidewiki:latest on Docker Hub. Everything configurable lives in .env.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: tidewiki-db
+    restart: unless-stopped
+    # Only what the database needs — it never sees the wiki's master key or mail password.
+    environment:
+      POSTGRES_DB: ${DB_NAME:-tidewiki}
+      POSTGRES_USER: ${DB_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:?Set DB_ADMIN_PASSWORD in .env}
+      APP_DB_USER: ${DB_USER:-tidewiki}
+      APP_DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    configs:
+      - source: db-init
+        target: /docker-entrypoint-initdb.d/10-tidewiki.sh
+    volumes:
+      # Database files. A local disk is strongly recommended (not an SMB share; NFS only with sync + hard mounts).
+      - ${DB_DATA:-./db}:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  wiki:
+    image: astaldoo/tidewiki:latest
+    container_name: tidewiki
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      WIKI_DB_HOST: db
+      WIKI_DB_NAME: ${DB_NAME:-tidewiki}
+      WIKI_DB_USER: ${DB_USER:-tidewiki}
+      WIKI_DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      WIKI_BACKUP_DIR: /backups
+      # the wiki never needs the database superuser — keep it out of this container
+      DB_ADMIN_PASSWORD: ""
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${WIKI_PORT:-3000}:3000"
+    volumes:
+      - ${WIKI_DATA:-./data}:/data
+      # Backups (encrypted). Another disk, or a NAS share — see "volumes" below for NFS/SMB.
+      - ${WIKI_BACKUPS:-./backups}:/backups
+      # More places to choose from in Einstellungen → Sicherungen (folders under /backups, /mnt,
+      # /media or /srv; the folder must belong to PUID:PGID), for example:
+      # - /mnt/nas/wiki-backups:/mnt/nas
+    networks: [backend, frontend]
+
+networks:
+  # The database is only reachable from the wiki, never from outside the stack.
+  backend:
+    internal: true
+  # The wiki's own way out (mail server, S3 backups).
+  frontend: {}
+
+configs:
+  # Runs once, when the database folder is still empty: creates the wiki's own database user
+  # with no superuser rights, owner of only this database. Values are passed as psql variables,
+  # so quotes or other characters in the password can't break or inject anything.
+  db-init:
+    content: |
+      #!/bin/sh
+      set -eu
+      if [ "$$APP_DB_USER" = "$$POSTGRES_USER" ]; then
+        echo "DB_USER must differ from DB_ADMIN_USER" >&2; exit 1
+      fi
+      psql -v ON_ERROR_STOP=1 --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB" \
+        -v app_user="$$APP_DB_USER" -v app_pw="$$APP_DB_PASSWORD" -v db="$$POSTGRES_DB" <<'SQL'
+      CREATE ROLE :"app_user" LOGIN PASSWORD :'app_pw' NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+      ALTER DATABASE :"db" OWNER TO :"app_user";
+      REVOKE ALL ON DATABASE :"db" FROM PUBLIC;
+      ALTER SCHEMA public OWNER TO :"app_user";
+      CREATE EXTENSION IF NOT EXISTS pg_trgm;
+      SQL
+
+# Backups on a NAS: uncomment one block, then set WIKI_BACKUPS=backups-nfs (or backups-smb) in .env.
+# volumes:
+#   backups-nfs:
+#     driver: local
+#     driver_opts:
+#       type: nfs
+#       o: "addr=192.168.1.10,nfsvers=4.1,rw,hard"
+#       device: ":/export/wiki-backups"
+#   backups-smb:
+#     driver: local
+#     driver_opts:
+#       type: cifs
+#       o: "addr=192.168.1.10,username=wiki,password=CHANGE-ME,vers=3.1.1,seal,uid=1000,gid=1000,file_mode=0600,dir_mode=0700"
+#       device: "//192.168.1.10/wiki-backups"

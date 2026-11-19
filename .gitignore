@@ -1,8 +1,11 @@
-node_modules
-.next
-out
-data
+node_modules/
+.next/
+/data/
+coverage/
+*.db
+*.db-*
 .env
-*.tsbuildinfo
+*.log
+.DS_Store
 next-env.d.ts
-tidedeck-docs.zip
+tsconfig.tsbuildinfo

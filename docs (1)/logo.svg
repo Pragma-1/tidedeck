@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Tidewiki">
+  <rect width="128" height="128" rx="28" fill="#2a2f36"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 42c-8-6-19-8-32-8v46c13 0 24 2 32 8 8-6 19-8 32-8V34c-13 0-24 2-32 8z" stroke="#eceef1" stroke-width="6"/>
+    <path d="M64 42v46" stroke="#eceef1" stroke-width="6"/>
+    <path d="M26 100c6-5 12-5 18 0s12 5 18 0 12-5 18 0 12 5 18 0" stroke="#8eaedb" stroke-width="6"/>
+  </g>
+</svg>
