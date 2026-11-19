@@ -23,7 +23,7 @@ title: "Tidedeck"
 - **Edit in place:** move, resize from any corner, duplicate, remove (with undo), copy or move blocks and apps to other boards. The board grows in every direction; desktop, tablet and phone each keep their own layout.
 - **Quick launch** with `Ctrl+K`: every app on every board, typed addresses, search shortcuts such as `!yt` and web search.
 - **Fits any screen:** scales up automatically on big displays, each block can zoom its content, and a wall-screen mode hides everything but the board.
-- **Looks:** nine presets plus accent colour, font, background and more.
+- **Looks:** 29 presets and 27 fonts, plus accent colour, background and more.
 - **Moving in is easy:** imports Homepage, Dashy and Homer configurations.
 
 ## Chapters

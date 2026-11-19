@@ -1,16 +1,17 @@
 "use client"
 
+import { memo, useEffect, useRef, useState } from "react"
 import { Check, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { Field } from "@/components/dashboard/fields"
 import { SizeSettings } from "@/components/dashboard/size-settings"
 import { ACCENT_PRESETS, accentVars } from "@/lib/accent"
 import type { Settings } from "@/lib/schema"
-import { FONTS, GRADIENTS, THEME_PRESETS, fontStack, presetMatches, type GradientId, type ThemePreset } from "@/lib/theme"
+import { FONT_GROUPS, FONT_SHEETS, FONTS, GRADIENTS, PRESET_GROUPS, THEME_PRESETS, fontStack, presetMatches, type FontId, type GradientId, type ThemePreset } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
 type Set = (fn: (s: Settings) => void) => void
@@ -27,8 +28,13 @@ function applyPreset(s: Settings, p: ThemePreset) {
   s.band = { ...p.band }
 }
 
-/** A tiny picture of the preset: band, page, a card, accent and a sample of the font. */
-function PresetCard({ p, active, onPick }: { p: ThemePreset; active: boolean; onPick: () => void }) {
+/**
+ * A tiny picture of the preset: band, page, a card, accent and a sample of the font.
+ * Redrawn only when it gets (de)selected, not with every colour-picker step.
+ */
+const PresetCard = memo(PresetCardInner, (a, b) => a.p === b.p && a.active === b.active)
+
+function PresetCardInner({ p, active, onPick }: { p: ThemePreset; active: boolean; onPick: () => void }) {
   const dark = p.background.mode === "color" && p.background.colorDark ? p.background.colorDark : STONE.dark.bg
   const band = p.band.dark || STONE.dark.band
   const gradient = p.background.mode === "gradient" ? GRADIENTS[p.background.gradient].dark : undefined
@@ -60,6 +66,48 @@ function PresetCard({ p, active, onPick }: { p: ThemePreset; active: boolean; on
   )
 }
 
+/**
+ * A colour well. Dragging through the picker sends dozens of changes a second;
+ * the dashboard takes at most one per frame (the well itself follows every one).
+ */
+function ColorWell({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const pending = useRef<string | null>(null)
+  const frame = useRef(0)
+  const send = useRef(onChange)
+  send.current = onChange
+  const flush = () => {
+    cancelAnimationFrame(frame.current)
+    frame.current = 0
+    const v = pending.current
+    pending.current = null
+    if (v !== null) send.current(v)
+    setDraft(null)
+  }
+  // Closing the dialog mid-drag still keeps the last colour.
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(frame.current)
+      if (pending.current !== null) send.current(pending.current)
+    },
+    [],
+  )
+  return (
+    <input
+      type="color"
+      aria-label={label}
+      value={draft ?? value}
+      onChange={(e) => {
+        pending.current = e.target.value
+        setDraft(e.target.value)
+        if (!frame.current) frame.current = requestAnimationFrame(flush)
+      }}
+      onBlur={() => pending.current !== null && flush()}
+      className="size-7 cursor-pointer rounded-md border-0 bg-transparent p-0 [&::-webkit-color-swatch]:rounded-md [&::-webkit-color-swatch]:border [&::-webkit-color-swatch-wrapper]:p-0"
+    />
+  )
+}
+
 function ColorPair({
   label,
   hint,
@@ -88,13 +136,7 @@ function ColorPair({
             ] as const
           ).map(([name, value, fb, on]) => (
             <label key={name} className="flex items-center gap-2 rounded-[0.55rem] border bg-card py-1 pr-1 pl-1.5 text-sm">
-              <input
-                type="color"
-                aria-label={`${label}, ${name.toLowerCase()}`}
-                value={value || fb}
-                onChange={(e) => on(e.target.value)}
-                className="size-7 cursor-pointer rounded-md border-0 bg-transparent p-0 [&::-webkit-color-swatch]:rounded-md [&::-webkit-color-swatch]:border [&::-webkit-color-swatch-wrapper]:p-0"
-              />
+              <ColorWell label={`${label}, ${name.toLowerCase()}`} value={value || fb} onChange={on} />
               <span className="min-w-20">
                 {name}
                 <span className="block font-mono text-[0.7rem] text-muted-foreground">{value || "default"}</span>
@@ -112,8 +154,27 @@ function ColorPair({
   )
 }
 
+/** The font list and the preset cards show every font: load their (small) stylesheets while the settings are open. */
+function useAllFonts() {
+  useEffect(() => {
+    for (const href of FONT_SHEETS) {
+      if (document.querySelector(`link[data-td-font-preview][href="${href}"]`)) continue
+      const el = document.createElement("link")
+      el.rel = "stylesheet"
+      el.href = href
+      el.dataset.tdFontPreview = ""
+      document.head.appendChild(el)
+    }
+  }, [])
+}
+
+const FONT_LIST = FONT_GROUPS.map((group) => ({
+  group,
+  fonts: (Object.entries(FONTS) as Array<[FontId, (typeof FONTS)[FontId]]>).filter(([, f]) => f.group === group),
+}))
+
 export function LookSettings({ settings, set }: { settings: Settings; set: Set }) {
-  const bg = settings.background
+  useAllFonts()
   const custom = (fn: (s: Settings) => void) =>
     set((s) => {
       fn(s)
@@ -129,11 +190,16 @@ export function LookSettings({ settings, set }: { settings: Settings; set: Set }
             <RotateCcw /> Back to Tide
           </Button>
         </div>
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          {THEME_PRESETS.map((p) => (
-            <PresetCard key={p.id} p={p} active={presetMatches(p, settings)} onPick={() => set((s) => applyPreset(s, p))} />
-          ))}
-        </div>
+        {PRESET_GROUPS.map((group) => (
+          <div key={group} className="grid gap-1.5">
+            <h4 className="text-xs font-medium text-muted-foreground">{group}</h4>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+              {THEME_PRESETS.filter((p) => p.group === group).map((p) => (
+                <PresetCard key={p.id} p={p} active={presetMatches(p, settings)} onPick={() => set((s) => applyPreset(s, p))} />
+              ))}
+            </div>
+          </div>
+        ))}
         <p className="text-xs text-muted-foreground">A preset sets colours, background and font. Change anything below to make it your own.</p>
       </section>
 
@@ -195,14 +261,20 @@ export function LookSettings({ settings, set }: { settings: Settings; set: Set }
           <SelectTrigger aria-label="Font" className="sm:w-80">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
-            {(Object.entries(FONTS) as Array<[keyof typeof FONTS, (typeof FONTS)[keyof typeof FONTS]]>).map(([id, f]) => (
-              <SelectItem key={id} value={id}>
-                <span style={{ fontFamily: fontStack(id, "") }}>{f.name}</span>
-                <span className="ml-2 text-xs text-muted-foreground">{f.note}</span>
-              </SelectItem>
+          <SelectContent className="max-h-[min(28rem,var(--radix-select-content-available-height))]">
+            {FONT_LIST.map(({ group, fonts }, i) => (
+              <SelectGroup key={group}>
+                {i > 0 && <SelectSeparator />}
+                <SelectLabel>{group}</SelectLabel>
+                {fonts.map(([id, f]) => (
+                  <SelectItem key={id} value={id}>
+                    <span style={{ fontFamily: fontStack(id, "") }}>{f.name}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">{f.note}</span>
+                  </SelectItem>
+                ))}
+                {group === "Device" && <SelectItem value="custom">Another font on my device…</SelectItem>}
+              </SelectGroup>
             ))}
-            <SelectItem value="custom">Another font on my device…</SelectItem>
           </SelectContent>
         </Select>
         {settings.font === "custom" && (
@@ -227,69 +299,179 @@ export function LookSettings({ settings, set }: { settings: Settings; set: Set }
         </p>
       </section>
 
+      <BackgroundSettings settings={settings} custom={custom} />
+
       <section className="grid gap-3">
-        <h3 className="text-sm font-semibold">Background</h3>
-        <div className="flex flex-wrap gap-1 rounded-[0.6rem] bg-muted p-1" role="radiogroup" aria-label="Background">
-          {(
-            [
-              ["theme", "Theme"],
-              ["color", "Colour"],
-              ["gradient", "Gradient"],
-              ["image", "Image"],
-            ] as const
-          ).map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              role="radio"
-              aria-checked={bg.mode === mode}
-              onClick={() => custom((s) => void (s.background.mode = mode))}
-              className={cn(
-                "flex-1 rounded-[0.45rem] px-3 py-1.5 text-sm transition-colors",
-                bg.mode === mode ? "bg-card font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <h3 className="text-sm font-semibold">Header and blocks</h3>
+        <ColorPair
+          label="Header band"
+          light={settings.band.light}
+          dark={settings.band.dark}
+          fallback={{ light: STONE.light.band, dark: STONE.dark.band }}
+          onLight={(v) => custom((s) => void (s.band.light = v))}
+          onDark={(v) => custom((s) => void (s.band.dark = v))}
+        />
+        <Field label={`Block opacity ${settings.cardOpacity}%`} hint="Below 100% the background shows through, frosted.">
+          {() => <Slider aria-label="Block opacity" min={20} max={100} value={[settings.cardOpacity]} onValueChange={([v]) => set((s) => void (s.cardOpacity = v))} />}
+        </Field>
+      </section>
 
-        {bg.mode === "theme" && <p className="text-xs text-muted-foreground">Tidewiki&apos;s stone grey, light and dark.</p>}
+      <section className="grid gap-3">
+        <h3 className="text-sm font-semibold">Custom CSS</h3>
+        <Textarea
+          aria-label="Custom CSS"
+          aria-describedby="custom-css-hint"
+          rows={4}
+          spellCheck={false}
+          className="font-mono text-xs"
+          value={settings.customCss}
+          placeholder=".block-surface { border-radius: 4px; }"
+          onChange={(e) => set((s) => void (s.customCss = e.target.value))}
+        />
+        <p id="custom-css-hint" className="text-xs text-muted-foreground">
+          Applied after everything else. Blocks have the class .block-surface, the header .band.
+        </p>
+      </section>
+    </div>
+  )
+}
 
-        {bg.mode === "color" && (
-          <ColorPair
-            label="Page colour"
-            hint="Blocks, lines and fields are tinted to match."
-            light={bg.colorLight}
-            dark={bg.colorDark}
-            fallback={{ light: STONE.light.bg, dark: STONE.dark.bg }}
-            onLight={(v) => custom((s) => void (s.background.colorLight = v))}
-            onDark={(v) => custom((s) => void (s.background.colorDark = v))}
-          />
+type Mode = Settings["background"]["mode"]
+const MODES: Array<[Mode, string]> = [
+  ["theme", "Theme"],
+  ["color", "Colour"],
+  ["gradient", "Gradient"],
+  ["image", "Image"],
+]
+
+/**
+ * The page background. The tabs only show the choices; the background changes
+ * when something is picked in a tab (or with its "Use" button), so looking at
+ * another tab never throws away the one in use.
+ */
+function BackgroundSettings({ settings, custom }: { settings: Settings; custom: Set }) {
+  const bg = settings.background
+  const [tab, setTab] = useState<Mode>(bg.mode)
+  // A preset (or another tab) switched the background: show that one.
+  useEffect(() => setTab(bg.mode), [bg.mode])
+  const use = (mode: Mode) => custom((s) => void (s.background.mode = mode))
+  const inUse = bg.mode === tab
+  const imageOk = /^(https?:\/\/\S+|\/\S*)$/.test(bg.imageUrl.trim())
+
+  const status = (ready: boolean, what: string) =>
+    inUse ? (
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Check className="size-3.5 text-primary" /> In use
+      </p>
+    ) : (
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="secondary" size="sm" disabled={!ready} onClick={() => use(tab)}>
+          Use {what}
+        </Button>
+        <span className="text-xs text-muted-foreground">Now in use: {MODES.find(([m]) => m === bg.mode)?.[1].toLowerCase()}</span>
+      </div>
+    )
+
+  return (
+    <section className="grid gap-3">
+      <h3 className="text-sm font-semibold">Background</h3>
+      <div className="flex flex-wrap gap-1 rounded-[0.6rem] bg-muted p-1" role="tablist" aria-label="Background">
+        {MODES.map(([mode, label]) => (
+          <button
+            key={mode}
+            type="button"
+            role="tab"
+            id={`bg-tab-${mode}`}
+            aria-selected={tab === mode}
+            aria-controls="bg-panel"
+            onClick={() => setTab(mode)}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-[0.45rem] px-3 py-1.5 text-sm transition-colors",
+              tab === mode ? "bg-card font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {label}
+            {bg.mode === mode && <span className="size-1.5 rounded-full bg-primary" aria-label="(in use)" />}
+          </button>
+        ))}
+      </div>
+
+      <div id="bg-panel" role="tabpanel" aria-labelledby={`bg-tab-${tab}`} className="grid gap-3">
+        {tab === "theme" && (
+          <>
+            <p className="text-xs text-muted-foreground">Tidewiki&apos;s stone grey, light and dark.</p>
+            {status(true, "the theme background")}
+          </>
         )}
 
-        {bg.mode === "gradient" && (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {(Object.entries(GRADIENTS) as Array<[GradientId, (typeof GRADIENTS)[GradientId]]>).map(([id, g]) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={bg.gradient === id}
-                onClick={() => custom((s) => void (s.background.gradient = id))}
-                className={cn("overflow-hidden rounded-[0.7rem] border text-left text-xs", bg.gradient === id && "ring-2 ring-primary")}
-              >
-                <span className="block h-12" style={{ background: STONE.dark.bg, backgroundImage: g.dark }} />
-                <span className="block px-2 py-1.5 font-medium">{g.name}</span>
-              </button>
-            ))}
-          </div>
+        {tab === "color" && (
+          <>
+            <ColorPair
+              label="Page colour"
+              hint="Blocks, lines and fields are tinted to match."
+              light={bg.colorLight}
+              dark={bg.colorDark}
+              fallback={{ light: STONE.light.bg, dark: STONE.dark.bg }}
+              onLight={(v) =>
+                custom((s) => {
+                  s.background.colorLight = v
+                  s.background.mode = "color"
+                })
+              }
+              onDark={(v) =>
+                custom((s) => {
+                  s.background.colorDark = v
+                  s.background.mode = "color"
+                })
+              }
+            />
+            {status(true, "these colours")}
+          </>
         )}
 
-        {bg.mode === "image" && (
+        {tab === "gradient" && (
+          <>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {(Object.entries(GRADIENTS) as Array<[GradientId, (typeof GRADIENTS)[GradientId]]>).map(([id, g]) => {
+                const on = bg.gradient === id && bg.mode === "gradient"
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      custom((s) => {
+                        s.background.gradient = id
+                        s.background.mode = "gradient"
+                      })
+                    }
+                    className={cn("overflow-hidden rounded-[0.7rem] border text-left text-xs", on && "ring-2 ring-primary")}
+                  >
+                    <span className="block h-12" style={{ background: STONE.dark.bg, backgroundImage: g.dark }} />
+                    <span className="block px-2 py-1.5 font-medium">{g.name}</span>
+                  </button>
+                )
+              })}
+            </div>
+            {status(true, `the ${GRADIENTS[bg.gradient].name} gradient`)}
+          </>
+        )}
+
+        {tab === "image" && (
           <>
             <Field label="Image" hint="An image URL, or a file in the public folder (e.g. /backgrounds/sea.jpg).">
               {(id) => (
-                <Input id={id} value={bg.imageUrl} placeholder="https://…" onChange={(e) => custom((s) => void (s.background.imageUrl = e.target.value))} />
+                <Input
+                  id={id}
+                  value={bg.imageUrl}
+                  placeholder="https://…"
+                  onChange={(e) =>
+                    custom((s) => {
+                      s.background.imageUrl = e.target.value
+                      if (e.target.value.trim()) s.background.mode = "image"
+                    })
+                  }
+                />
               )}
             </Field>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -300,36 +482,10 @@ export function LookSettings({ settings, set }: { settings: Settings; set: Set }
                 {() => <Slider aria-label="Background darkening" min={0} max={90} value={[bg.dim]} onValueChange={([v]) => custom((s) => void (s.background.dim = v))} />}
               </Field>
             </div>
+            {status(imageOk, "this image")}
           </>
         )}
-
-        <ColorPair
-          label="Header band"
-          light={settings.band.light}
-          dark={settings.band.dark}
-          fallback={{ light: STONE.light.band, dark: STONE.dark.band }}
-          onLight={(v) => custom((s) => void (s.band.light = v))}
-          onDark={(v) => custom((s) => void (s.band.dark = v))}
-        />
-
-        <Field label={`Block opacity ${settings.cardOpacity}%`} hint="Below 100% the background shows through, frosted.">
-          {() => <Slider aria-label="Block opacity" min={20} max={100} value={[settings.cardOpacity]} onValueChange={([v]) => set((s) => void (s.cardOpacity = v))} />}
-        </Field>
-      </section>
-
-      <Field label="Custom CSS" hint="Applied after everything else. Blocks have the class .block-surface, the header .band.">
-        {(id) => (
-          <Textarea
-            id={id}
-            rows={4}
-            spellCheck={false}
-            className="font-mono text-xs"
-            value={settings.customCss}
-            placeholder=".block-surface { border-radius: 4px; }"
-            onChange={(e) => set((s) => void (s.customCss = e.target.value))}
-          />
-        )}
-      </Field>
-    </div>
+      </div>
+    </section>
   )
 }

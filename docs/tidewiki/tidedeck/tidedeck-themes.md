@@ -8,16 +8,24 @@ All of this is under **Settings → Look** (edit mode → gear). Changes apply i
 
 ## Presets and colours
 
-Nine presets set colours, background and font in one click: **Tide** (the Tidewiki look), Harbour night, Sandbar, Kelp forest, Heather, Aurora, Paper, Phosphor and Clear view (Atkinson Hyperlegible, made for easy reading). Everything they set can then be changed:
+Presets set colours, background and font in one click:
+
+| Group | Presets |
+| --- | --- |
+| Tide | **Tide** (the Tidewiki look), Harbour night, Sandbar, Kelp forest, Heather, Aurora, Paper, Phosphor, Clear view (Atkinson Hyperlegible, made for easy reading) |
+| Colour schemes | Nord, Dracula, Gruvbox, Catppuccin, Tokyo Night, Rosé Pine, Solarized — each with its light variant |
+| Styles | Synthwave, Terminal, Typewriter, Editorial, Blueprint, Arcade, Poster, Notebook |
+| Sea and nature | Deep sea, Coral reef, Arctic, Sunset, Moss |
+
+Everything they set can then be changed:
 
 | Setting | |
 | --- | --- |
 | Default theme | light, dark or the device's setting; every browser can still switch with the sun/moon button |
 | Accent colour | buttons, highlights, status — separately for light and dark if you like |
-| Font | Inter, IBM Plex Sans, Manrope, Space Grotesk, Nunito, Atkinson Hyperlegible, Source Serif, JetBrains Mono, the system font, or any font installed on your devices |
-| Background | theme default, your own colour (blocks and lines are tinted to match), a gradient, or an image with blur and darkening |
-| Header band | its colour in light and dark |
-| Block opacity | lets a background image show through |
+| Font | 27 fonts in groups — clean (Inter, IBM Plex Sans, Manrope, Atkinson Hyperlegible), friendly (Space Grotesk, Nunito, Comfortaa, Quicksand, Syne, Bricolage Grotesque), serif (Source Serif, Fraunces, Playfair Display, DM Serif Display), futuristic (Orbitron, Exo 2, Unbounded), condensed (Oswald, Big Shoulders), retro (VT323, Pixelify Sans, Silkscreen, Special Elite, Courier Prime), handwritten (Caveat), monospace (JetBrains Mono, Recursive) — plus the system font or any font installed on your devices. All are part of the image; a page loads only the one in use |
+| Background | theme default, your own colour (blocks and lines are tinted to match), a gradient (Aurora, Tide pool, Dusk, Mist, Synthwave, Sunset, Reef), or an image with blur and darkening. The tabs only show the choices: the background changes when you pick something in a tab or click its **Use …** button, and the tab in use has a dot |
+| Header and blocks | the header band's colour in light and dark, and the block opacity (lets a background image show through) |
 | Custom CSS | for everything else |
 
 ![The same board in the light theme](/media/tidedeck-board-light.webp)

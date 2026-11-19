@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type ComponentType } from "react"
+import { useEffect, useState, memo, type ComponentType } from "react"
 import { StaticBoard } from "@/components/dashboard/static-board"
 import { getDashboard, useDashboard } from "@/hooks/use-dashboard"
 import { loadArrangeApps } from "@/components/widgets/app-widgets"
@@ -33,7 +33,7 @@ export function loadEditGrid(): Promise<EditGridType> {
  * (EditGrid) is loaded only for edit mode, and kept loaded after that. Both
  * place every block exactly alike, so switching between them moves nothing.
  */
-export function DeckGrid({ board }: { board: Board }) {
+function DeckGridInner({ board }: { board: Board }) {
   const editing = useDashboard((s) => s.editing)
   const signedIn = useDashboard((s) => s.auth.authenticated)
   const [EditGrid, setEditGrid] = useState<EditGridType | null>(() => loaded)
@@ -77,3 +77,6 @@ export function DeckGrid({ board }: { board: Board }) {
 
   return editing && EditGrid ? <EditGrid board={board} /> : <StaticBoard board={board} />
 }
+
+/** Redrawn only when its own data changes, not with every settings change. */
+export const DeckGrid = memo(DeckGridInner)

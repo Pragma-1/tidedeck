@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { memo, useState } from "react"
 import { useTheme } from "next-themes"
 import {
   Check,
@@ -70,7 +70,7 @@ const BoardOptions = dynamic(loadPart(() => import("@/components/dashboard/board
 const BoardDialogs = dynamic(loadPart(() => import("@/components/dashboard/board-edit").then((m) => m.BoardDialogs), { resumeEdit: true }), { ssr: false })
 
 /** The dark Tidewiki band: brand, boards, actions. The board below overlaps its lower edge. */
-export function Header() {
+function HeaderInner() {
   const title = useDashboard((s) => s.config.settings.title)
   const boards = useDashboard((s) => s.config.boards)
   const activeId = useDashboard((s) => s.activeBoardId)
@@ -217,3 +217,6 @@ export function Header() {
     </header>
   )
 }
+
+/** Redrawn only when its own data changes, not with every settings change. */
+export const Header = memo(HeaderInner)

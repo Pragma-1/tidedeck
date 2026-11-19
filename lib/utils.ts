@@ -40,3 +40,37 @@ export function formatDuration(seconds: number): string {
   if (h > 0) return `${h}h ${m}m`
   return `${m}m`
 }
+
+/**
+ * `next`, but with every part that is deep-equal to the same part of `prev`
+ * replaced by `prev`'s object. Untouched boards and blocks keep their identity,
+ * so a change to one setting doesn't redraw the whole dashboard.
+ */
+export function keepEqual<T>(prev: T, next: T): T {
+  if (Object.is(prev, next)) return prev
+  if (typeof prev !== "object" || typeof next !== "object" || prev === null || next === null) return next
+  if (Array.isArray(prev) !== Array.isArray(next)) return next
+  if (Array.isArray(prev)) {
+    const a = prev as unknown[]
+    const b = next as unknown[]
+    let same = a.length === b.length
+    const out = b.map((v, i) => {
+      const k = i < a.length ? keepEqual(a[i], v) : v
+      if (k !== a[i]) same = false
+      return k
+    })
+    return (same ? prev : out) as T
+  }
+  if (Object.getPrototypeOf(prev) !== Object.prototype || Object.getPrototypeOf(next) !== Object.prototype) return next
+  const a = prev as Record<string, unknown>
+  const b = next as Record<string, unknown>
+  const keys = Object.keys(b)
+  let same = keys.length === Object.keys(a).length
+  const out: Record<string, unknown> = {}
+  for (const key of keys) {
+    const k = Object.hasOwn(a, key) ? keepEqual(a[key], b[key]) : b[key]
+    if (!Object.hasOwn(a, key) || k !== a[key]) same = false
+    out[key] = k
+  }
+  return (same ? prev : out) as T
+}

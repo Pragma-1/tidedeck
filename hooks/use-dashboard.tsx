@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { createStore, useStore, type StoreApi } from "zustand"
 import { toast } from "sonner"
 import type { Block, Board, BreakpointKey, DashboardConfig } from "@/lib/schema"
+import { keepEqual } from "@/lib/utils"
 
 // The schema checks a change before it is sent (the server checks it again in any
 // case). It is loaded with the first change instead of with the page.
@@ -103,9 +104,10 @@ function createDashboardStore(init: Init) {
 
     mutate: (fn) => {
       if (!schema) void loadSchema()
-      const draft = structuredClone(get().config)
+      const prev = get().config
+      const draft = structuredClone(prev)
       fn(draft)
-      set({ config: draft, saveState: "pending" })
+      set({ config: keepEqual(prev, draft), saveState: "pending" })
       scheduleSave()
     },
 
@@ -126,7 +128,7 @@ function createDashboardStore(init: Init) {
     replaceConfig: (config) => {
       const { activeBoardId } = get()
       set({
-        config,
+        config: keepEqual(get().config, config),
         saveState: "pending",
         activeBoardId: config.boards.some((b) => b.id === activeBoardId) ? activeBoardId : config.boards[0].id,
       })
@@ -136,7 +138,7 @@ function createDashboardStore(init: Init) {
     applyRemote: (config, rev) => {
       const { activeBoardId } = get()
       set({
-        config,
+        config: keepEqual(get().config, config),
         rev,
         activeBoardId: config.boards.some((b) => b.id === activeBoardId) ? activeBoardId : config.boards[0].id,
       })

@@ -15,7 +15,7 @@ import { DashboardProvider, getDashboard, useActiveBoard, useDashboard, type Aut
 import { player, usePlayer } from "@/hooks/use-player"
 import { useStatusPolling } from "@/hooks/use-status"
 import { useLiveSync, useShortcuts } from "@/hooks/use-sync"
-import { themeCss } from "@/lib/theme"
+import { fontHref, themeCss } from "@/lib/theme"
 import type { App, DashboardConfig, Settings } from "@/lib/schema"
 import { cn } from "@/lib/utils"
 
@@ -59,6 +59,18 @@ export function Dashboard({ config, rev, auth, boardId, locale, build }: Props) 
 
 function useAppearance(settings: Settings) {
   const css = themeCss(settings)
+  const font = fontHref(settings.font)
+  useEffect(() => {
+    let el = document.getElementById("td-font") as HTMLLinkElement | null
+    if (!font) return
+    if (!el) {
+      el = document.createElement("link")
+      el.id = "td-font"
+      el.rel = "stylesheet"
+      document.head.appendChild(el)
+    }
+    if (el.getAttribute("href") !== font) el.setAttribute("href", font)
+  }, [font])
   useEffect(() => {
     let el = document.getElementById("td-theme") as HTMLStyleElement | null
     if (!el) {

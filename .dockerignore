@@ -1,11 +1,10 @@
 node_modules
 .next
 data
-tests
-.git
 .env
+.git
 *.md
+!README.md
 docs
 .github
-coverage
-*.log
+public/fonts

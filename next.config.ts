@@ -1,18 +1,40 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
 
-const config: NextConfig = {
+const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
-  reactStrictMode: true,
-  // No image optimizer: the app never uses next/image, so the native libvips decoder (sharp)
-  // is switched off and kept out of the build instead of sitting there as attack surface.
   images: { unoptimized: true },
-  outputFileTracingExcludes: { "*": ["node_modules/sharp/**", "node_modules/@img/**"] },
-  serverExternalPackages: ["better-sqlite3", "@node-rs/argon2"],
   async headers() {
-    return [{ source: "/_next/static/:path*", headers: [{ key: "X-Content-Type-Options", value: "nosniff" }] }];
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "same-origin" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        ],
+      },
+      {
+        // Font files carry their version in the address: cache them for good.
+        source: "/fonts/:font/:file",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        // The small per-font stylesheets: a day, then checked again.
+        source: "/fonts/:sheet",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
+      },
+      {
+        // API answers are data, never pages: nothing in them may run or be framed,
+        // even if an upstream (music server, feed) sends HTML.
+        source: "/api/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: "default-src 'none'; frame-ancestors 'none'; sandbox" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+        ],
+      },
+    ]
   },
-  experimental: { serverActions: { bodySizeLimit: "100kb" } },
-};
+}
 
-export default config;
+export default nextConfig
