@@ -13,6 +13,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - Background tabs only show the choices now; the background changes when you pick something in a tab (or click its **Use …** button). Looking at another tab no longer throws away the gradient or image in use. The tab in use has a dot.
 - Header band and block opacity have their own section (“Header and blocks”), and custom CSS too; they no longer look like part of every background tab.
+- Every push to `main` now publishes the image to Docker Hub after the checks pass (`latest`, plus `<version>` and `<major>.<minor>` for a new version); a `v<version>` tag publishes that version again. Images carry provenance and an SBOM; the workflow's actions are pinned to exact commits.
 - A page loads only the font in use: the selectable fonts are separate small stylesheets in `/fonts` (cached for a year) instead of part of every page's CSS, which is about 10 % smaller.
 
 ### Fixed

@@ -1,9 +1,13 @@
+# Type check, production build and dependency audit on Node 22 (what the image
+# ships with) and 24 (LTS until April 2028, so the image can move to it).
+# Runs for pull requests, and for pushes to main as the first step of the
+# Docker image workflow (which publishes only if these pass).
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,12 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # 22 is what the image ships with; 24 (LTS until April 2028) is checked too,
-        # so the image can move to it (docker build --build-arg NODE_VERSION=24).
         node: [22, 24]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm

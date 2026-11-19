@@ -9,7 +9,9 @@ docker compose pull
 docker compose up -d
 ```
 
-In Arcane: **Pull** and **Redeploy** the project. Boards, settings and layouts of older versions are converted on start; nothing has to be done by hand. Read the [changelog](https://github.com/Pragma-1/tidedeck/blob/main/CHANGELOG.md) before larger jumps.
+In Arcane: **Pull** and **Redeploy** the project.
+
+`latest` follows every published change. To update only when you decide to, use a version tag instead, e.g. `astaldoo/tidedeck:1.2` (that minor version) or `astaldoo/tidedeck:1.2.0` (exactly that one). The tags are listed on [Docker Hub](https://hub.docker.com/r/astaldoo/tidedeck/tags). Boards, settings and layouts of older versions are converted on start; nothing has to be done by hand. Read the [changelog](https://github.com/Pragma-1/tidedeck/blob/main/CHANGELOG.md) before larger jumps.
 
 Tabs that are open during an update load the new version by themselves at the next quiet moment — not while you edit, type, have a dialog open or play music. A tab that is in the middle of editing reloads straight back into edit mode.
 
