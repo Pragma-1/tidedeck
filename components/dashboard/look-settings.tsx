@@ -1,11 +1,12 @@
 "use client"
 
-import { memo, useEffect, useRef, useState } from "react"
+import { memo, useEffect, useId, useRef, useState } from "react"
 import { Check, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
+import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Field } from "@/components/dashboard/fields"
 import { SizeSettings } from "@/components/dashboard/size-settings"
@@ -24,6 +25,7 @@ function applyPreset(s: Settings, p: ThemePreset) {
   s.accentLight = p.accentLight
   s.font = p.font
   s.customFont = ""
+  // Base and gradient come from the preset; your image stays as it is.
   s.background = { ...s.background, ...p.background }
   s.band = { ...p.band }
 }
@@ -35,9 +37,9 @@ function applyPreset(s: Settings, p: ThemePreset) {
 const PresetCard = memo(PresetCardInner, (a, b) => a.p === b.p && a.active === b.active)
 
 function PresetCardInner({ p, active, onPick }: { p: ThemePreset; active: boolean; onPick: () => void }) {
-  const dark = p.background.mode === "color" && p.background.colorDark ? p.background.colorDark : STONE.dark.bg
+  const dark = p.background.base === "color" && p.background.colorDark ? p.background.colorDark : STONE.dark.bg
   const band = p.band.dark || STONE.dark.band
-  const gradient = p.background.mode === "gradient" ? GRADIENTS[p.background.gradient].dark : undefined
+  const gradient = p.background.gradientOn ? GRADIENTS[p.background.gradient].dark : undefined
   return (
     <button
       type="button"
@@ -336,156 +338,145 @@ export function LookSettings({ settings, set }: { settings: Settings; set: Set }
   )
 }
 
-type Mode = Settings["background"]["mode"]
-const MODES: Array<[Mode, string]> = [
-  ["theme", "Theme"],
-  ["color", "Colour"],
-  ["gradient", "Gradient"],
-  ["image", "Image"],
-]
+/** One layer of the background: a title with an on/off switch, its settings below while on. */
+function Layer({
+  title,
+  hint,
+  on,
+  onChange,
+  children,
+}: {
+  title: string
+  hint: string
+  on: boolean
+  onChange: (on: boolean) => void
+  children: React.ReactNode
+}) {
+  const id = useId()
+  return (
+    <div className={cn("grid gap-3 rounded-[0.8rem] border p-3.5", on && "border-primary/40")}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="grid gap-0.5">
+          <label htmlFor={id} className="text-sm font-medium">
+            {title}
+          </label>
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        </div>
+        <Switch id={id} checked={on} onCheckedChange={onChange} />
+      </div>
+      {on && children}
+    </div>
+  )
+}
 
 /**
- * The page background. The tabs only show the choices; the background changes
- * when something is picked in a tab (or with its "Use" button), so looking at
- * another tab never throws away the one in use.
+ * The page background, in layers: the base (theme grey or your own colour, which
+ * also tints blocks and lines), an image over it, and a gradient on top. Image and
+ * gradient switch on and off independently and keep their settings while off.
  */
 function BackgroundSettings({ settings, custom }: { settings: Settings; custom: Set }) {
   const bg = settings.background
-  const [tab, setTab] = useState<Mode>(bg.mode)
-  // A preset (or another tab) switched the background: show that one.
-  useEffect(() => setTab(bg.mode), [bg.mode])
-  const use = (mode: Mode) => custom((s) => void (s.background.mode = mode))
-  const inUse = bg.mode === tab
-  const imageOk = /^(https?:\/\/\S+|\/\S*)$/.test(bg.imageUrl.trim())
-
-  const status = (ready: boolean, what: string) =>
-    inUse ? (
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Check className="size-3.5 text-primary" /> In use
-      </p>
-    ) : (
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="secondary" size="sm" disabled={!ready} onClick={() => use(tab)}>
-          Use {what}
-        </Button>
-        <span className="text-xs text-muted-foreground">Now in use: {MODES.find(([m]) => m === bg.mode)?.[1].toLowerCase()}</span>
-      </div>
-    )
-
   return (
     <section className="grid gap-3">
       <h3 className="text-sm font-semibold">Background</h3>
-      <div className="flex flex-wrap gap-1 rounded-[0.6rem] bg-muted p-1" role="tablist" aria-label="Background">
-        {MODES.map(([mode, label]) => (
-          <button
-            key={mode}
-            type="button"
-            role="tab"
-            id={`bg-tab-${mode}`}
-            aria-selected={tab === mode}
-            aria-controls="bg-panel"
-            onClick={() => setTab(mode)}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-[0.45rem] px-3 py-1.5 text-sm transition-colors",
-              tab === mode ? "bg-card font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {label}
-            {bg.mode === mode && <span className="size-1.5 rounded-full bg-primary" aria-label="(in use)" />}
-          </button>
-        ))}
+
+      <div className="grid gap-3 rounded-[0.8rem] border border-primary/40 p-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-0.5">
+            <span className="text-sm font-medium" id="bg-base">
+              Base
+            </span>
+            <p className="text-xs text-muted-foreground">The page colour. Blocks, lines and fields are tinted to match.</p>
+          </div>
+          <div className="flex gap-1 rounded-[0.6rem] bg-muted p-1" role="radiogroup" aria-labelledby="bg-base">
+            {(
+              [
+                ["theme", "Theme grey"],
+                ["color", "Own colour"],
+              ] as const
+            ).map(([base, label]) => (
+              <button
+                key={base}
+                type="button"
+                role="radio"
+                aria-checked={bg.base === base}
+                onClick={() => custom((s) => void (s.background.base = base))}
+                className={cn(
+                  "rounded-[0.45rem] px-3 py-1 text-sm transition-colors",
+                  bg.base === base ? "bg-card font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {bg.base === "color" && (
+          <ColorPair
+            label="Page colour"
+            light={bg.colorLight}
+            dark={bg.colorDark}
+            fallback={{ light: STONE.light.bg, dark: STONE.dark.bg }}
+            onLight={(v) => custom((s) => void (s.background.colorLight = v))}
+            onDark={(v) => custom((s) => void (s.background.colorDark = v))}
+          />
+        )}
       </div>
 
-      <div id="bg-panel" role="tabpanel" aria-labelledby={`bg-tab-${tab}`} className="grid gap-3">
-        {tab === "theme" && (
-          <>
-            <p className="text-xs text-muted-foreground">Tidewiki&apos;s stone grey, light and dark.</p>
-            {status(true, "the theme background")}
-          </>
-        )}
-
-        {tab === "color" && (
-          <>
-            <ColorPair
-              label="Page colour"
-              hint="Blocks, lines and fields are tinted to match."
-              light={bg.colorLight}
-              dark={bg.colorDark}
-              fallback={{ light: STONE.light.bg, dark: STONE.dark.bg }}
-              onLight={(v) =>
-                custom((s) => {
-                  s.background.colorLight = v
-                  s.background.mode = "color"
-                })
-              }
-              onDark={(v) =>
-                custom((s) => {
-                  s.background.colorDark = v
-                  s.background.mode = "color"
-                })
-              }
+      <Layer
+        title="Image"
+        hint="Over the base. Darkening blends it towards the page colour."
+        on={bg.imageOn}
+        onChange={(on) => custom((s) => void (s.background.imageOn = on))}
+      >
+        <Field label="Image address" hint="An image URL, or a file in the public folder (e.g. /backgrounds/sea.jpg).">
+          {(id) => (
+            <Input
+              id={id}
+              value={bg.imageUrl}
+              placeholder="https://…"
+              onChange={(e) => custom((s) => void (s.background.imageUrl = e.target.value))}
             />
-            {status(true, "these colours")}
-          </>
-        )}
+          )}
+        </Field>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label={`Blur ${bg.blur}px`}>
+            {() => <Slider aria-label="Background blur" min={0} max={40} value={[bg.blur]} onValueChange={([v]) => custom((s) => void (s.background.blur = v))} />}
+          </Field>
+          <Field label={`Darken ${bg.dim}%`}>
+            {() => <Slider aria-label="Background darkening" min={0} max={90} value={[bg.dim]} onValueChange={([v]) => custom((s) => void (s.background.dim = v))} />}
+          </Field>
+        </div>
+      </Layer>
 
-        {tab === "gradient" && (
-          <>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {(Object.entries(GRADIENTS) as Array<[GradientId, (typeof GRADIENTS)[GradientId]]>).map(([id, g]) => {
-                const on = bg.gradient === id && bg.mode === "gradient"
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() =>
-                      custom((s) => {
-                        s.background.gradient = id
-                        s.background.mode = "gradient"
-                      })
-                    }
-                    className={cn("overflow-hidden rounded-[0.7rem] border text-left text-xs", on && "ring-2 ring-primary")}
-                  >
-                    <span className="block h-12" style={{ background: STONE.dark.bg, backgroundImage: g.dark }} />
-                    <span className="block px-2 py-1.5 font-medium">{g.name}</span>
-                  </button>
-                )
-              })}
-            </div>
-            {status(true, `the ${GRADIENTS[bg.gradient].name} gradient`)}
-          </>
-        )}
-
-        {tab === "image" && (
-          <>
-            <Field label="Image" hint="An image URL, or a file in the public folder (e.g. /backgrounds/sea.jpg).">
-              {(id) => (
-                <Input
-                  id={id}
-                  value={bg.imageUrl}
-                  placeholder="https://…"
-                  onChange={(e) =>
-                    custom((s) => {
-                      s.background.imageUrl = e.target.value
-                      if (e.target.value.trim()) s.background.mode = "image"
-                    })
-                  }
+      <Layer
+        title="Gradient"
+        hint="On top of everything, as a soft glow of colour."
+        on={bg.gradientOn}
+        onChange={(on) => custom((s) => void (s.background.gradientOn = on))}
+      >
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Gradient">
+          {(Object.entries(GRADIENTS) as Array<[GradientId, (typeof GRADIENTS)[GradientId]]>).map(([id, g]) => {
+            const on = bg.gradient === id
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => custom((s) => void (s.background.gradient = id))}
+                className={cn("overflow-hidden rounded-[0.7rem] border text-left text-xs", on && "ring-2 ring-primary")}
+              >
+                <span
+                  className="block h-12"
+                  style={{ background: bg.base === "color" && bg.colorDark ? bg.colorDark : STONE.dark.bg, backgroundImage: g.dark }}
                 />
-              )}
-            </Field>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field label={`Blur ${bg.blur}px`}>
-                {() => <Slider aria-label="Background blur" min={0} max={40} value={[bg.blur]} onValueChange={([v]) => custom((s) => void (s.background.blur = v))} />}
-              </Field>
-              <Field label={`Darken ${bg.dim}%`}>
-                {() => <Slider aria-label="Background darkening" min={0} max={90} value={[bg.dim]} onValueChange={([v]) => custom((s) => void (s.background.dim = v))} />}
-              </Field>
-            </div>
-            {status(imageOk, "this image")}
-          </>
-        )}
-      </div>
+                <span className="block px-2 py-1.5 font-medium">{g.name}</span>
+              </button>
+            )
+          })}
+        </div>
+      </Layer>
     </section>
   )
 }

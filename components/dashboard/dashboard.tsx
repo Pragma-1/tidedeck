@@ -96,9 +96,14 @@ function useAppearance(settings: Settings) {
   }, [settings.title])
 }
 
+/**
+ * The image layer of the background: the image, darkened towards the page colour
+ * (theme grey or your own), with the gradient (if on) drawn over it again.
+ * Without an image the page colour and gradient are plain CSS (see themeCss).
+ */
 function Backdrop({ settings }: { settings: Settings }) {
-  const { mode, imageUrl, blur, dim } = settings.background
-  if (mode !== "image" || !imageUrl) return null
+  const { imageOn, imageUrl, blur, dim, gradientOn } = settings.background
+  if (!imageOn || !imageUrl) return null
   return (
     <div aria-hidden className="fixed inset-0 -z-10 overflow-hidden">
       <div
@@ -106,6 +111,7 @@ function Backdrop({ settings }: { settings: Settings }) {
         style={{ backgroundImage: `url(${JSON.stringify(imageUrl)})`, filter: blur ? `blur(${blur}px)` : undefined }}
       />
       <div className="absolute inset-0 bg-background" style={{ opacity: dim / 100 }} />
+      {gradientOn && <div className="absolute inset-0" style={{ backgroundImage: "var(--gradient)" }} />}
     </div>
   )
 }

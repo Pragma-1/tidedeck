@@ -2,6 +2,12 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.3.0] — 2026-11-19
+
+### Changed
+
+- The background is built from layers instead of one of four choices: a base (theme grey or your own colour, which also tints blocks and lines), an image over it (blurred, and darkened towards the base colour) and a gradient on top. Image and gradient switch on and off independently and keep their settings while off, so nothing is lost by trying something else. Existing settings are converted. Presets set the base and gradient (Synthwave, Coral reef, Sunset and Deep sea now combine both) and leave your image alone.
+
 ## [1.2.0] — 2026-11-19
 
 ### Added

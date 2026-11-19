@@ -24,7 +24,7 @@ Everything they set can then be changed:
 | Default theme | light, dark or the device's setting; every browser can still switch with the sun/moon button |
 | Accent colour | buttons, highlights, status — separately for light and dark if you like |
 | Font | 27 fonts in groups — clean (Inter, IBM Plex Sans, Manrope, Atkinson Hyperlegible), friendly (Space Grotesk, Nunito, Comfortaa, Quicksand, Syne, Bricolage Grotesque), serif (Source Serif, Fraunces, Playfair Display, DM Serif Display), futuristic (Orbitron, Exo 2, Unbounded), condensed (Oswald, Big Shoulders), retro (VT323, Pixelify Sans, Silkscreen, Special Elite, Courier Prime), handwritten (Caveat), monospace (JetBrains Mono, Recursive) — plus the system font or any font installed on your devices. All are part of the image; a page loads only the one in use |
-| Background | theme default, your own colour (blocks and lines are tinted to match), a gradient (Aurora, Tide pool, Dusk, Mist, Synthwave, Sunset, Reef), or an image with blur and darkening. The tabs only show the choices: the background changes when you pick something in a tab or click its **Use …** button, and the tab in use has a dot |
+| Background | layers, from the bottom: the **base** (theme grey or your own colour; blocks and lines are tinted to match), an **image** (with blur, and darkening towards the base colour) and a **gradient** on top (Aurora, Tide pool, Dusk, Mist, Synthwave, Sunset, Reef). Image and gradient each have a switch and keep their settings while off. Presets set the base and gradient and leave your image alone |
 | Header and blocks | the header band's colour in light and dark, and the block opacity (lets a background image show through) |
 | Custom CSS | for everything else |
 

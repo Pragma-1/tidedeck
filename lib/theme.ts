@@ -123,55 +123,58 @@ export type ThemePreset = {
   accent: string
   accentLight: string
   font: FontId
-  background: { mode: "theme" | "color" | "gradient"; colorLight: string; colorDark: string; gradient: GradientId }
+  /** Base and gradient layers. A preset never touches the image layer: that one is yours. */
+  background: { base: "theme" | "color"; colorLight: string; colorDark: string; gradientOn: boolean; gradient: GradientId }
   band: { light: string; dark: string }
 }
 
-const bg = (mode: ThemePreset["background"]["mode"], colorLight = "", colorDark = "", gradient: GradientId = "aurora") => ({
-  mode,
+/** Background of a preset: the theme grey or a colour pair, with an optional gradient on top. */
+const bg = (colorLight = "", colorDark = "", gradient?: GradientId): ThemePreset["background"] => ({
+  base: colorLight || colorDark ? "color" : "theme",
   colorLight,
   colorDark,
-  gradient,
+  gradientOn: !!gradient,
+  gradient: gradient ?? "aurora",
 })
 
 /** One-click looks. Tide is Tidewiki's design; the rest are its relatives. */
 export const THEME_PRESETS: ThemePreset[] = [
   // Tide: Tidewiki's design and its relatives.
-  { id: "tide", group: "Tide", name: "Tide", accent: "#8eaedb", accentLight: "#3d5a80", font: "inter", background: bg("theme"), band: { light: "", dark: "" } },
-  { id: "harbour", group: "Tide", name: "Harbour night", accent: "#7fb2f0", accentLight: "#2c5a96", font: "inter", background: bg("color", "#eef2f7", "#0c1420"), band: { light: "#16263b", dark: "#070d16" } },
-  { id: "sandbar", group: "Tide", name: "Sandbar", accent: "#e0b25a", accentLight: "#8a5d17", font: "manrope", background: bg("color", "#f4efe6", "#16130e"), band: { light: "#3a3127", dark: "#0e0b07" } },
-  { id: "kelp", group: "Tide", name: "Kelp forest", accent: "#7cc4b4", accentLight: "#2f6f62", font: "nunito", background: bg("color", "#edf3f0", "#0d1412"), band: { light: "#1e3a33", dark: "#060e0b" } },
-  { id: "heather", group: "Tide", name: "Heather", accent: "#b4a4e6", accentLight: "#5b4b8a", font: "plex", background: bg("color", "#f3f1f7", "#131119"), band: { light: "#2e2840", dark: "#0b0910" } },
-  { id: "aurora", group: "Tide", name: "Aurora", accent: "#8fe3c8", accentLight: "#1f7a63", font: "space", background: bg("gradient", "", "", "aurora"), band: { light: "#101a24", dark: "#05080c" } },
-  { id: "paper", group: "Tide", name: "Paper", accent: "#9fb6e0", accentLight: "#2f4a7a", font: "serif", background: bg("color", "#faf8f2", "#191816"), band: { light: "#2b2a27", dark: "#0d0c0b" } },
-  { id: "phosphor", group: "Tide", name: "Phosphor", accent: "#ffb454", accentLight: "#9a5b00", font: "mono", background: bg("color", "#f3f1ea", "#0b0a08"), band: { light: "#1a1712", dark: "#040302" } },
-  { id: "legible", group: "Tide", name: "Clear view", accent: "#9cc3ff", accentLight: "#1f4f99", font: "atkinson", background: bg("theme"), band: { light: "", dark: "" } },
+  { id: "tide", group: "Tide", name: "Tide", accent: "#8eaedb", accentLight: "#3d5a80", font: "inter", background: bg(), band: { light: "", dark: "" } },
+  { id: "harbour", group: "Tide", name: "Harbour night", accent: "#7fb2f0", accentLight: "#2c5a96", font: "inter", background: bg("#eef2f7", "#0c1420"), band: { light: "#16263b", dark: "#070d16" } },
+  { id: "sandbar", group: "Tide", name: "Sandbar", accent: "#e0b25a", accentLight: "#8a5d17", font: "manrope", background: bg("#f4efe6", "#16130e"), band: { light: "#3a3127", dark: "#0e0b07" } },
+  { id: "kelp", group: "Tide", name: "Kelp forest", accent: "#7cc4b4", accentLight: "#2f6f62", font: "nunito", background: bg("#edf3f0", "#0d1412"), band: { light: "#1e3a33", dark: "#060e0b" } },
+  { id: "heather", group: "Tide", name: "Heather", accent: "#b4a4e6", accentLight: "#5b4b8a", font: "plex", background: bg("#f3f1f7", "#131119"), band: { light: "#2e2840", dark: "#0b0910" } },
+  { id: "aurora", group: "Tide", name: "Aurora", accent: "#8fe3c8", accentLight: "#1f7a63", font: "space", background: bg("", "", "aurora"), band: { light: "#101a24", dark: "#05080c" } },
+  { id: "paper", group: "Tide", name: "Paper", accent: "#9fb6e0", accentLight: "#2f4a7a", font: "serif", background: bg("#faf8f2", "#191816"), band: { light: "#2b2a27", dark: "#0d0c0b" } },
+  { id: "phosphor", group: "Tide", name: "Phosphor", accent: "#ffb454", accentLight: "#9a5b00", font: "mono", background: bg("#f3f1ea", "#0b0a08"), band: { light: "#1a1712", dark: "#040302" } },
+  { id: "legible", group: "Tide", name: "Clear view", accent: "#9cc3ff", accentLight: "#1f4f99", font: "atkinson", background: bg(), band: { light: "", dark: "" } },
 
   // Well-known editor colour schemes, in their own colours (dark and light variants).
-  { id: "nord", group: "Colour schemes", name: "Nord", accent: "#88c0d0", accentLight: "#5e81ac", font: "plex", background: bg("color", "#eceff4", "#2e3440"), band: { light: "#3b4252", dark: "#242933" } },
-  { id: "dracula", group: "Colour schemes", name: "Dracula", accent: "#bd93f9", accentLight: "#644ac9", font: "mono", background: bg("color", "#fffbeb", "#282a36"), band: { light: "#3a3c4e", dark: "#1e1f29" } },
-  { id: "gruvbox", group: "Colour schemes", name: "Gruvbox", accent: "#fabd2f", accentLight: "#b57614", font: "recursive", background: bg("color", "#fbf1c7", "#282828"), band: { light: "#3c3836", dark: "#1d2021" } },
-  { id: "catppuccin", group: "Colour schemes", name: "Catppuccin", accent: "#cba6f7", accentLight: "#8839ef", font: "quicksand", background: bg("color", "#eff1f5", "#1e1e2e"), band: { light: "#313244", dark: "#11111b" } },
-  { id: "tokyonight", group: "Colour schemes", name: "Tokyo Night", accent: "#7aa2f7", accentLight: "#2e7de9", font: "exo", background: bg("color", "#e1e2e7", "#1a1b26"), band: { light: "#24283b", dark: "#16161e" } },
-  { id: "rosepine", group: "Colour schemes", name: "Rosé Pine", accent: "#c4a7e7", accentLight: "#907aa9", font: "fraunces", background: bg("color", "#faf4ed", "#191724"), band: { light: "#26233a", dark: "#12101b" } },
-  { id: "solarized", group: "Colour schemes", name: "Solarized", accent: "#2aa198", accentLight: "#268bd2", font: "plex", background: bg("color", "#fdf6e3", "#002b36"), band: { light: "#073642", dark: "#00212b" } },
+  { id: "nord", group: "Colour schemes", name: "Nord", accent: "#88c0d0", accentLight: "#5e81ac", font: "plex", background: bg("#eceff4", "#2e3440"), band: { light: "#3b4252", dark: "#242933" } },
+  { id: "dracula", group: "Colour schemes", name: "Dracula", accent: "#bd93f9", accentLight: "#644ac9", font: "mono", background: bg("#fffbeb", "#282a36"), band: { light: "#3a3c4e", dark: "#1e1f29" } },
+  { id: "gruvbox", group: "Colour schemes", name: "Gruvbox", accent: "#fabd2f", accentLight: "#b57614", font: "recursive", background: bg("#fbf1c7", "#282828"), band: { light: "#3c3836", dark: "#1d2021" } },
+  { id: "catppuccin", group: "Colour schemes", name: "Catppuccin", accent: "#cba6f7", accentLight: "#8839ef", font: "quicksand", background: bg("#eff1f5", "#1e1e2e"), band: { light: "#313244", dark: "#11111b" } },
+  { id: "tokyonight", group: "Colour schemes", name: "Tokyo Night", accent: "#7aa2f7", accentLight: "#2e7de9", font: "exo", background: bg("#e1e2e7", "#1a1b26"), band: { light: "#24283b", dark: "#16161e" } },
+  { id: "rosepine", group: "Colour schemes", name: "Rosé Pine", accent: "#c4a7e7", accentLight: "#907aa9", font: "fraunces", background: bg("#faf4ed", "#191724"), band: { light: "#26233a", dark: "#12101b" } },
+  { id: "solarized", group: "Colour schemes", name: "Solarized", accent: "#2aa198", accentLight: "#268bd2", font: "plex", background: bg("#fdf6e3", "#002b36"), band: { light: "#073642", dark: "#00212b" } },
 
   // Looks built around a font.
-  { id: "synthwave", group: "Styles", name: "Synthwave", accent: "#ff7edb", accentLight: "#c2187a", font: "orbitron", background: bg("gradient", "", "", "synthwave"), band: { light: "#2a0c4e", dark: "#120424" } },
-  { id: "terminal", group: "Styles", name: "Terminal", accent: "#33ff66", accentLight: "#0a7a2a", font: "vt323", background: bg("color", "#eef5ee", "#050a06"), band: { light: "#0f2414", dark: "#020402" } },
-  { id: "typewriter", group: "Styles", name: "Typewriter", accent: "#e06a5c", accentLight: "#a3261a", font: "typewriter", background: bg("color", "#f3ecdc", "#1c1a16"), band: { light: "#2d2a24", dark: "#0f0e0b" } },
-  { id: "editorial", group: "Styles", name: "Editorial", accent: "#ff6b5a", accentLight: "#c0261a", font: "playfair", background: bg("color", "#fbfaf7", "#121212"), band: { light: "#1a1a1a", dark: "#050505" } },
-  { id: "blueprint", group: "Styles", name: "Blueprint", accent: "#9cd0ff", accentLight: "#1d5fa3", font: "recursive", background: bg("color", "#e8f0f8", "#0e2a47"), band: { light: "#0b2440", dark: "#081c33" } },
-  { id: "arcade", group: "Styles", name: "Arcade", accent: "#ffd319", accentLight: "#9a6b00", font: "pixelify", background: bg("color", "#f4f0ff", "#0d0221"), band: { light: "#241047", dark: "#06010f" } },
-  { id: "poster", group: "Styles", name: "Poster", accent: "#ff7a3d", accentLight: "#b8460f", font: "oswald", background: bg("color", "#f2f0eb", "#141414"), band: { light: "#1f1f1f", dark: "#080808" } },
-  { id: "notebook", group: "Styles", name: "Notebook", accent: "#7fb0ff", accentLight: "#2563c9", font: "caveat", background: bg("color", "#fdfbf3", "#1d1f24"), band: { light: "#2a2d35", dark: "#101115" } },
+  { id: "synthwave", group: "Styles", name: "Synthwave", accent: "#ff7edb", accentLight: "#c2187a", font: "orbitron", background: bg("#f7f0ff", "#140a26", "synthwave"), band: { light: "#2a0c4e", dark: "#120424" } },
+  { id: "terminal", group: "Styles", name: "Terminal", accent: "#33ff66", accentLight: "#0a7a2a", font: "vt323", background: bg("#eef5ee", "#050a06"), band: { light: "#0f2414", dark: "#020402" } },
+  { id: "typewriter", group: "Styles", name: "Typewriter", accent: "#e06a5c", accentLight: "#a3261a", font: "typewriter", background: bg("#f3ecdc", "#1c1a16"), band: { light: "#2d2a24", dark: "#0f0e0b" } },
+  { id: "editorial", group: "Styles", name: "Editorial", accent: "#ff6b5a", accentLight: "#c0261a", font: "playfair", background: bg("#fbfaf7", "#121212"), band: { light: "#1a1a1a", dark: "#050505" } },
+  { id: "blueprint", group: "Styles", name: "Blueprint", accent: "#9cd0ff", accentLight: "#1d5fa3", font: "recursive", background: bg("#e8f0f8", "#0e2a47"), band: { light: "#0b2440", dark: "#081c33" } },
+  { id: "arcade", group: "Styles", name: "Arcade", accent: "#ffd319", accentLight: "#9a6b00", font: "pixelify", background: bg("#f4f0ff", "#0d0221"), band: { light: "#241047", dark: "#06010f" } },
+  { id: "poster", group: "Styles", name: "Poster", accent: "#ff7a3d", accentLight: "#b8460f", font: "oswald", background: bg("#f2f0eb", "#141414"), band: { light: "#1f1f1f", dark: "#080808" } },
+  { id: "notebook", group: "Styles", name: "Notebook", accent: "#7fb0ff", accentLight: "#2563c9", font: "caveat", background: bg("#fdfbf3", "#1d1f24"), band: { light: "#2a2d35", dark: "#101115" } },
 
   // Sea and nature.
-  { id: "deepsea", group: "Sea and nature", name: "Deep sea", accent: "#4fd1c5", accentLight: "#0e7c74", font: "manrope", background: bg("color", "#e6f0f6", "#04121f"), band: { light: "#0b2236", dark: "#020a12" } },
-  { id: "reef", group: "Sea and nature", name: "Coral reef", accent: "#ff8a80", accentLight: "#c2453a", font: "comfortaa", background: bg("gradient", "", "", "reef"), band: { light: "#3a2a27", dark: "#0a0f12" } },
-  { id: "arctic", group: "Sea and nature", name: "Arctic", accent: "#a5d8ff", accentLight: "#1c6aa3", font: "quicksand", background: bg("color", "#f3f8fb", "#0e1a22"), band: { light: "#23394a", dark: "#08121a" } },
-  { id: "sunset", group: "Sea and nature", name: "Sunset", accent: "#ffb38a", accentLight: "#b4501c", font: "syne", background: bg("gradient", "", "", "sunset"), band: { light: "#3a1f1a", dark: "#170a0a" } },
-  { id: "moss", group: "Sea and nature", name: "Moss", accent: "#a3c47a", accentLight: "#4d6b2a", font: "bricolage", background: bg("color", "#f1f4ec", "#10140e"), band: { light: "#273220", dark: "#080a06" } },
+  { id: "deepsea", group: "Sea and nature", name: "Deep sea", accent: "#4fd1c5", accentLight: "#0e7c74", font: "manrope", background: bg("#e6f0f6", "#04121f", "tidepool"), band: { light: "#0b2236", dark: "#020a12" } },
+  { id: "reef", group: "Sea and nature", name: "Coral reef", accent: "#ff8a80", accentLight: "#c2453a", font: "comfortaa", background: bg("#f2f8f7", "#08161c", "reef"), band: { light: "#3a2a27", dark: "#0a0f12" } },
+  { id: "arctic", group: "Sea and nature", name: "Arctic", accent: "#a5d8ff", accentLight: "#1c6aa3", font: "quicksand", background: bg("#f3f8fb", "#0e1a22"), band: { light: "#23394a", dark: "#08121a" } },
+  { id: "sunset", group: "Sea and nature", name: "Sunset", accent: "#ffb38a", accentLight: "#b4501c", font: "syne", background: bg("#fbf3ec", "#1a1012", "sunset"), band: { light: "#3a1f1a", dark: "#170a0a" } },
+  { id: "moss", group: "Sea and nature", name: "Moss", accent: "#a3c47a", accentLight: "#4d6b2a", font: "bricolage", background: bg("#f1f4ec", "#10140e"), band: { light: "#273220", dark: "#080a06" } },
 ]
 
 export function presetMatches(p: ThemePreset, s: Settings): boolean {
@@ -179,10 +182,11 @@ export function presetMatches(p: ThemePreset, s: Settings): boolean {
     s.accent.toLowerCase() === p.accent &&
     (s.accentLight || "").toLowerCase() === p.accentLight &&
     s.font === p.font &&
-    s.background.mode === p.background.mode &&
-    (p.background.mode !== "color" ||
+    s.background.base === p.background.base &&
+    (p.background.base !== "color" ||
       (s.background.colorLight === p.background.colorLight && s.background.colorDark === p.background.colorDark)) &&
-    (p.background.mode !== "gradient" || s.background.gradient === p.background.gradient) &&
+    s.background.gradientOn === p.background.gradientOn &&
+    (!p.background.gradientOn || s.background.gradient === p.background.gradient) &&
     s.band.light === p.band.light &&
     s.band.dark === p.band.dark
   )
@@ -229,7 +233,7 @@ export function themeCss(s: Settings): string {
   const dark: string[] = []
   for (const [k, v] of Object.entries(accentVars(s.accent, s.accentLight))) light.push(`${k}: ${v}`)
 
-  if (s.background.mode === "color") {
+  if (s.background.base === "color") {
     if (s.background.colorLight) light.push(...lightSurfaces(s.background.colorLight))
     if (s.background.colorDark) dark.push(...darkSurfaces(s.background.colorDark))
   }
@@ -239,10 +243,11 @@ export function themeCss(s: Settings): string {
   let css = displayCss(s.display) + `:root{${light.join(";")}}`
   if (adjust) css += `body{font-size-adjust:${adjust}}`
   if (dark.length) css += `html[data-theme="dark"]{${dark.join(";")}}`
-  if (s.background.mode === "gradient") {
+  if (s.background.gradientOn) {
+    // On the page itself, and (as --gradient) on top of a background image.
     const g = GRADIENTS[s.background.gradient]
-    css += `body{background-image:${g.light};background-attachment:fixed}`
-    css += `html[data-theme="dark"] body{background-image:${g.dark}}`
+    css += `:root{--gradient:${g.light}}html[data-theme="dark"]{--gradient:${g.dark}}`
+    css += `body{background-image:var(--gradient);background-attachment:fixed}`
   }
   // Rendered into a <style> element: values are validated, but never let one close it.
   return css.replace(/</g, "\\3c ")

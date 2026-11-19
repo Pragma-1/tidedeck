@@ -212,14 +212,27 @@ export type Board = z.infer<typeof boardSchema>
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 const hexOrAuto = z.union([hex, z.literal("")])
 
+/**
+ * The page background, in layers from the bottom: the base (theme grey or your own
+ * colour), an optional image (blurred, and darkened towards the base colour), and
+ * an optional gradient on top. Each layer keeps its settings while switched off.
+ */
 const backgroundSchema = z.preprocess(
-  // Older configs had no mode: an image meant "image", nothing meant "theme".
-  (v) => (v && typeof v === "object" && !("mode" in v) ? { ...v, mode: (v as { imageUrl?: string }).imageUrl ? "image" : "theme" } : v),
+  (v) => {
+    if (!v || typeof v !== "object" || "base" in v) return v
+    // Up to 1.2 one of four was in use ("mode"); older files had only an image.
+    const o = v as Record<string, unknown>
+    const mode = typeof o.mode === "string" ? o.mode : o.imageUrl ? "image" : "theme"
+    const { mode: _, ...rest } = o
+    return { ...rest, base: mode === "color" ? "color" : "theme", gradientOn: mode === "gradient", imageOn: mode === "image" }
+  },
   z.object({
-    mode: z.enum(["theme", "color", "gradient", "image"]).default("theme"),
+    base: z.enum(["theme", "color"]).default("theme"),
     colorLight: hexOrAuto.default(""),
     colorDark: hexOrAuto.default(""),
+    gradientOn: z.boolean().default(false),
     gradient: z.enum(GRADIENT_IDS).default("aurora"),
+    imageOn: z.boolean().default(false),
     imageUrl: z.string().max(4096).default(""),
     blur: z.number().min(0).max(40).default(0),
     dim: z.number().min(0).max(90).default(40),
@@ -241,7 +254,17 @@ export const settingsSchema = z.object({
     .max(60)
     .regex(/^[\w \-]*$/, "Letters, numbers, spaces and dashes only")
     .default(""),
-  background: backgroundSchema.default({ mode: "theme", colorLight: "", colorDark: "", gradient: "aurora", imageUrl: "", blur: 0, dim: 40 }),
+  background: backgroundSchema.default({
+    base: "theme",
+    colorLight: "",
+    colorDark: "",
+    gradientOn: false,
+    gradient: "aurora",
+    imageOn: false,
+    imageUrl: "",
+    blur: 0,
+    dim: 40,
+  }),
   /** Header band colours; empty = theme default. */
   band: z.object({ light: hexOrAuto.default(""), dark: hexOrAuto.default("") }).default({ light: "", dark: "" }),
   cardOpacity: z.number().min(20).max(100).default(100),
